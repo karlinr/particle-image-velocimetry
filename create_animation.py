@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 # Animation variables
 animation_width = 352
 animation_height = 352
-animation_frames = 20
-particles = 10000
+animation_frames = 60
+particles = 1000
 particle_size = 9
 
 
@@ -73,9 +73,13 @@ class Particle:
             if self.y < 0:
                 self.y += animation_height
 
-    def get_position(self):
-        # Returns particle position as a tuple
-        return int(self.x), int(self.y)
+    def get_position_x(self):
+        # Returns particle x position
+        return self.x
+
+    def get_position_y(self):
+        # Returns particle y position
+        return self.y
 
     def get_brightness(self):
         # Returns particle brightness
@@ -83,14 +87,6 @@ class Particle:
 
 
 def make_animation(_particle_type):
-    gaussian = np.zeros((particle_size, particle_size))
-
-    for _x in range(particle_size):
-        for _y in range(particle_size):
-            gaussian[_x, _y] = circular_gaussian(_x, _y, particle_size / 2 - 0.5, particle_size / 2 - 0.5, particle_size / 8)
-    plt.imshow(gaussian)
-    plt.show()
-
     start = time.time()
     print(f"Creating animation of type {_particle_type}...", end = "")
 
@@ -99,7 +95,7 @@ def make_animation(_particle_type):
     for i in range(particles):
         _x = random.randint(0, animation_width - 1)
         _y = random.randint(0, animation_height - 1)
-        a[i] = Particle(_x, _y, _particle_type, random.randint(0, 1))
+        a[i] = Particle(_x, _y, _particle_type, random.uniform(0, 1))
 
     # Set up video array
     video_array = np.zeros((animation_frames, animation_width, animation_height), dtype=np.float64)
@@ -108,16 +104,17 @@ def make_animation(_particle_type):
     for t in range(animation_frames):
         image_array = np.zeros((animation_width, animation_height), dtype=np.float64)
         for i in range(particles):
+            # Should use non-integer position variables *fix this*
             a[i].step()
-            array_size = image_array[a[i].get_position()[0]:a[i].get_position()[0] + particle_size, a[i].get_position()[1]: a[i].get_position()[1] + particle_size].shape
-            image_array[a[i].get_position()[0]:a[i].get_position()[0] + particle_size, a[i].get_position()[1]: a[i].get_position()[1] + particle_size] += a[i].get_brightness() * gaussian[0:array_size[0],0:array_size[1]]
+            for _x in range(max([0, int(a[i].get_position_x() - 8)]), min([animation_width, int(a[i].get_position_x() + 8)])):
+                for _y in range(max([0, int(a[i].get_position_y() - 8)]), min([animation_height, int(a[i].get_position_y() + 8)])):
+                    image_array[_x, _y] += a[i].get_brightness() * circular_gaussian(_x, _y, a[i].get_position_x(), a[i].get_position_y(), 2)
         # Save current frame to video
         image_array = np.minimum(image_array, np.full(image_array.shape,255))
         video_array[t] = image_array
 
     # Save to disk
     # noinspection PyTypeChecker
-    print(np.max(video_array))
     tf.imwrite(f"data/animations/animation_{_particle_type}.tif", video_array.astype(np.int8), compression = "zlib")
 
     # Measure execution time
