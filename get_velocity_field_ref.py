@@ -5,6 +5,7 @@ import matplotlib.animation as animate
 import os
 import time
 # from scipy.signal import correlate2d
+from scipy.interpolate import RBFInterpolator
 
 # Settings
 # plt.style.use('dark_background')
@@ -106,7 +107,7 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _frame_spacing):
 
 
 def plot_fields(_animation):
-    field = get_particle_velocity_from_video(f"./data/animations/{_animation}", 24, 56, 1)
+    field = get_particle_velocity_from_video(f"./data/animations/{_animation}", 16, 32, 1)
 
     x = field[1][:, :, 0]
     y = field[1][:, :, 1]

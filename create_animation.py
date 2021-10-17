@@ -10,7 +10,13 @@ animation_width = 352
 animation_height = 352
 animation_frames = 20
 particles = 10000
-particle_size = 5
+particle_size = 9
+
+
+# Returns a gaussian
+# https://mathworld.wolfram.com/GaussianFunction.html
+def circular_gaussian(_x, _y, _mean_x, _mean_y, _sd):
+    return (1 / (1*np.pi * _sd**2)) * np.exp(-((_x-_mean_x)**2 + (_y - _mean_y)**2) / (2 * _sd**2)) * 255
 
 
 class Particle:
@@ -77,6 +83,14 @@ class Particle:
 
 
 def make_animation(_particle_type):
+    gaussian = np.zeros((particle_size, particle_size))
+
+    for _x in range(particle_size):
+        for _y in range(particle_size):
+            gaussian[_x, _y] = circular_gaussian(_x, _y, particle_size / 2 - 0.5, particle_size / 2 - 0.5, particle_size / 8)
+    plt.imshow(gaussian)
+    plt.show()
+
     start = time.time()
     print(f"Creating animation of type {_particle_type}...", end = "")
 
@@ -85,23 +99,26 @@ def make_animation(_particle_type):
     for i in range(particles):
         _x = random.randint(0, animation_width - 1)
         _y = random.randint(0, animation_height - 1)
-        a[i] = Particle(_x, _y, _particle_type, random.randint(0, 255))
+        a[i] = Particle(_x, _y, _particle_type, random.randint(0, 1))
 
     # Set up video array
-    video_array = np.zeros((animation_frames, animation_width, animation_height), dtype=np.int8)
+    video_array = np.zeros((animation_frames, animation_width, animation_height), dtype=np.float64)
 
     # Simulate particles
     for t in range(animation_frames):
-        image_array = np.zeros((animation_width, animation_height), dtype=np.int8)
+        image_array = np.zeros((animation_width, animation_height), dtype=np.float64)
         for i in range(particles):
             a[i].step()
-            image_array[a[i].get_position()] = a[i].get_brightness()
+            array_size = image_array[a[i].get_position()[0]:a[i].get_position()[0] + particle_size, a[i].get_position()[1]: a[i].get_position()[1] + particle_size].shape
+            image_array[a[i].get_position()[0]:a[i].get_position()[0] + particle_size, a[i].get_position()[1]: a[i].get_position()[1] + particle_size] += a[i].get_brightness() * gaussian[0:array_size[0],0:array_size[1]]
         # Save current frame to video
+        image_array = np.minimum(image_array, np.full(image_array.shape,255))
         video_array[t] = image_array
 
     # Save to disk
     # noinspection PyTypeChecker
-    tf.imwrite(f"data/animations/animation_{_particle_type}.tif", video_array, compression = "zlib")
+    print(np.max(video_array))
+    tf.imwrite(f"data/animations/animation_{_particle_type}.tif", video_array.astype(np.int8), compression = "zlib")
 
     # Measure execution time
     end = time.time()
