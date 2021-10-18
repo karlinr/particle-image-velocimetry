@@ -70,9 +70,9 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _frame_spacing):
                         iw1_a = iw2_a[m:m + iw1, n:n + iw1]
                         abs_diff_map[m, n] = np.sum(np.abs(iw1_a - iw1_b))
 
-                #fig.add_subplot(width, height, k * height + j + 1)
-                #plt.imshow(abs_diff_map)
-                #plt.axis('off')
+                """fig.add_subplot(width, height, k * height + j + 1)
+                plt.imshow(abs_diff_map)
+                plt.axis('off')"""
 
                 # Get the minima of the absolute differences to find the velocity vector
                 peak_position = np.unravel_index(abs_diff_map.argmin(), abs_diff_map.shape)
@@ -85,12 +85,18 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _frame_spacing):
 
         #plt.show()
 
+    #fig, ax = plt.subplots(figsize = (20, 20), sharex = True)
+
     # Calculate the mean velocity field using the time averaged array of absolute differences
     mean_absolute_differences = np.mean(absolute_differences, axis = 0)
     for j in range(0, width):
         for k in range(0, height):
             x = int((j + 0.5) * iw2)
             y = int((k + 0.5) * iw2)
+
+            """fig.add_subplot(width, height, k * height + j + 1)
+            plt.imshow(mean_absolute_differences[j,k])
+            plt.axis('off')"""
 
             # Get the minima of the absolute differences to find the average velocity vector
             peak_position = np.unravel_index(mean_absolute_differences[j, k].argmin(),
@@ -100,6 +106,8 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _frame_spacing):
 
             # Save to the arrays
             mean_velocity_field[j, k, :] = [x, y, u_avg, v_avg]
+
+    #plt.show()
 
     end = time.time()
     print(f"Completed in {(end - start):.2f} seconds")
