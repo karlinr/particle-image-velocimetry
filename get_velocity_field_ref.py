@@ -33,8 +33,8 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _frame_spacing):
 
     for i in range(0, frames):
         print(f"{i}/{frames}")
-        b = video[i + frame_spacing]
-        a = video[i]
+        b = video[i]
+        a = video[i + frame_spacing]
 
         #fig, ax = plt.subplots(figsize = (20, 20), sharex = True)
 
@@ -75,9 +75,16 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _frame_spacing):
                 plt.axis('off')"""
 
                 # Get the minima of the absolute differences to find the velocity vector
-                peak_position = np.unravel_index(abs_diff_map.argmin(), abs_diff_map.shape)
-                u = peak_position[0] - ((iw2 - iw1) / 2)
-                v = peak_position[1] - ((iw2 - iw1) / 2)
+                peak_position_i = np.unravel_index(abs_diff_map.argmin(), abs_diff_map.shape)
+                xc = yc = np.log(abs_diff_map[peak_position_i[0], peak_position_i[1]])
+                xl = np.log(abs_diff_map[peak_position_i[0] - 1, peak_position_i[1]])
+                xr = np.log(abs_diff_map[peak_position_i[0] + 1, peak_position_i[1]])
+                ya = np.log(abs_diff_map[peak_position_i[0], peak_position_i[1] - 1])
+                yb = np.log(abs_diff_map[peak_position_i[0], peak_position_i[1] + 1])
+                subpixel_x = (xl - xr) / (2 * (xr - 2 * xc + xl))
+                subpixel_y = (ya - yb) / (2 * (yb - 2 * yc + ya))
+                u = peak_position_i[0] - ((iw2 - iw1) / 2)# + subpixel_x
+                v = peak_position_i[1] - ((iw2 - iw1) / 2)# + subpixel_y
 
                 # Save to the arrays
                 velocity_field[i, j, k, :] = [x, y, u, v]
@@ -101,6 +108,8 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _frame_spacing):
             # Get the minima of the absolute differences to find the average velocity vector
             peak_position = np.unravel_index(mean_absolute_differences[j, k].argmin(),
                                              mean_absolute_differences[j, k].shape)
+            u = peak_position[0] - ((iw2 - iw1) / 2)
+            v = peak_position[1] - ((iw2 - iw1) / 2)
             u_avg = peak_position[0] - ((iw2 - iw1) / 2)
             v_avg = peak_position[1] - ((iw2 - iw1) / 2)
 

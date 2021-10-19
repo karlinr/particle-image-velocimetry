@@ -8,7 +8,3 @@ def constant(_x, _y):
 
 def potential1(_x, _y):
     return 0, -_x / 50
-
-
-def potential2(_x, _y):
-    return 0, -_y / 50
