@@ -5,7 +5,6 @@ import matplotlib.animation as animate
 import os
 import time
 # from scipy.signal import correlate2d
-from scipy.interpolate import RBFInterpolator
 
 # Settings
 # plt.style.use('dark_background')
@@ -69,6 +68,8 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _frame_spacing):
                     for n in range(0, iw2 - iw1):
                         iw1_a = iw2_a[m:m + iw1, n:n + iw1]
                         abs_diff_map[m, n] = np.sum(np.abs(iw1_a - iw1_b))
+                plt.plot(np.arange(len(abs_diff_map.flatten())),abs_diff_map.flatten())
+                plt.show()
 
                 """fig.add_subplot(width, height, k * height + j + 1)
                 plt.imshow(abs_diff_map)
