@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animate
 import os
 import time
+import scipy.optimize
 
 
 # from scipy.signal import correlate2d
@@ -12,8 +13,10 @@ import time
 # plt.style.use('dark_background')
 
 
-def gaussian():
-
+def gaussian2D(_xy, _a, _x0, _y0, _sigma_x, _sigma_y, _bg):
+    (_x, _y) = _xy
+    return (_bg + _a * np.exp(
+        -(((_x - _x0) ** 2 / (2 * _sigma_x ** 2)) + ((_y - _y0) ** 2 / (2 * _sigma_y ** 2))))).ravel()
 
 
 def get_particle_velocity_from_video(_filename, _iw1, _iw2):
@@ -35,14 +38,21 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2):
     mean_velocity_field = np.empty((width, height, 4))
     absolute_differences = np.empty((int(frames / 2), width, height, iw2 - iw1, iw2 - iw1))
 
+    # Check for locations which contain particles
+    image_intensity_sum = np.sum(video, axis = 0)
+    intensity_array = [np.sum(image_intensity_sum[j * iw2: (j + 1) * iw2, k * iw2: (k + 1) * iw2]) for j in range(0, width) for k in range(0, height)]
+    intensity_array = [intensity_array / np.max(intensity_array) > 0.5]
+    intensity_array = np.array(intensity_array).reshape((width, height))
+
+
     for i in range(0, frames, 2):
         print(f"{i}/{frames}")
         b = video[i]
         a = video[i + 1]
+        print(f"Comparing {i} with {i+1}")
 
-        # fig, ax = plt.subplots(figsize = (20, 20), sharex = True)
 
-        # Find the velocity field using the sum   of absolute differences
+        # Find the velocity field using the sum of absolute differences
         for j in range(0, width):
             for k in range(0, height):
 
@@ -53,114 +63,138 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2):
                 x = int((j + 0.5) * iw2)
                 y = int((k + 0.5) * iw2)
 
-                # Get slice of image at larger interrogation window
-                iw2_a = a[int(x - iw2 / 2):int(x + iw2 / 2), int(y - iw2 / 2):int(y + iw2 / 2)]
-                iw2_b = b[int(x - iw2 / 2):int(x + iw2 / 2), int(y - iw2 / 2):int(y + iw2 / 2)]
+                if intensity_array[j, k] == True:
 
-                # Get slices for smaller interrogation window
-                tl = int((iw2 - iw1) / 2)
-                br = int((iw2 + iw1) / 2)
-                iw1_a = iw2_a[tl:br, tl:br]
-                iw1_b = iw2_b[tl:br, tl:br]
+                    # Get slice of image at larger interrogation window
+                    iw2_a = a[int(x - iw2 / 2):int(x + iw2 / 2), int(y - iw2 / 2):int(y + iw2 / 2)]
+                    iw2_b = b[int(x - iw2 / 2):int(x + iw2 / 2), int(y - iw2 / 2):int(y + iw2 / 2)]
 
-                # Check if there is no motion detected before attempting to find flow vectors
-                """if np.array_equiv(iw1_a, iw1_b):
-                    abs_diff_map[int((iw2 - iw1) / 2), int((iw2 - iw1) / 2)] = float("-inf")
-                    velocity_field[i, j, k, :] = [x, y, 0, 0]
-                else:"""
-                # Calculate the absolute differences for the interrogation window
-                for m in range(0, iw2 - iw1):
-                    for n in range(0, iw2 - iw1):
-                        iw1_a = iw2_a[m:m + iw1, n:n + iw1]
-                        abs_diff_map[m, n] = np.sum(np.abs(iw1_a - iw1_b))
+                    # Get slices for smaller interrogation window
+                    tl = int((iw2 - iw1) / 2)
+                    br = int((iw2 + iw1) / 2)
+                    iw1_a = iw2_a[tl:br, tl:br]
+                    iw1_b = iw2_b[tl:br, tl:br]
 
-                """fig.add_subplot(width, height, k * height + j + 1)
-                plt.imshow(abs_diff_map)
-                plt.axis('off')"""
+                    # Calculate the absolute differences for the interrogation window
+                    for m in range(0, iw2 - iw1):
+                        for n in range(0, iw2 - iw1):
+                            iw1_a = iw2_a[m:m + iw1, n:n + iw1]
+                            abs_diff_map[m, n] = np.sum(np.abs(iw1_a - iw1_b))
 
-                # Get the minima of the absolute differences to find the velocity vector
-                peak_position_i = np.unravel_index(abs_diff_map.argmin(), abs_diff_map.shape)
-                u = peak_position_i[0] - ((iw2 - iw1) / 2)  # + subpixel_x
-                v = peak_position_i[1] - ((iw2 - iw1) / 2)  # + subpixel_y
+                    # Get the minima of the absolute differences to find the velocity vector
+                    peak_position_i = np.unravel_index(abs_diff_map.argmin(), abs_diff_map.shape)
+                    u = peak_position_i[0] - ((iw2 - iw1) / 2)  # + subpixel_x
+                    v = peak_position_i[1] - ((iw2 - iw1) / 2)  # + subpixel_y
+                else:
+                    abs_diff_map = np.ones((iw2 - iw1, iw2 - iw1))
+                    abs_diff_map[int((iw2 - iw1) / 2), int((iw2 - iw1) / 2)] = 0
+                    u = (iw2 - iw1) / 2
+                    v = (iw2 - iw1) / 2
 
                 # Save to the arrays
                 velocity_field[int(i / 2), j, k, :] = [x, y, u, v]
                 absolute_differences[int(i / 2), j, k, :, :] = abs_diff_map
 
-        # plt.show()
 
-    # fig, ax = plt.subplots(figsize = (20, 20), sharex = True)
 
     # Calculate the mean velocity field using the time averaged array of absolute differences
-    mean_absolute_differences = np.mean(absolute_differences, axis=0)
+
+    # Get the mean of our absolute differences array for time averaged PIV
+    mean_absolute_differences = np.mean(absolute_differences, axis = 0)
+
+    #fig, ax = plt.subplots(figsize = (20, 20), sharex = True)
+
     for j in range(0, width):
         for k in range(0, height):
             x = int((j + 0.5) * iw2)
             y = int((k + 0.5) * iw2)
 
-            """fig.add_subplot(width, height, k * height + j + 1)
+            if intensity_array[j, k] == True:
+                # Get the minima of the absolute differences to find the average velocity vector
+                peak_position = np.unravel_index(mean_absolute_differences[j, k].argmin(), mean_absolute_differences[j, k].shape)
+                u_avg = peak_position[0] - ((iw2 - iw1) / 2)
+                v_avg = peak_position[1] - ((iw2 - iw1) / 2)
+
+                mean_absolute_differences[j, k] = -mean_absolute_differences[j, k]
+                _x = np.arange(mean_absolute_differences[j, k].shape[0])
+                _y = np.arange(mean_absolute_differences[j, k].shape[1])
+                _x, _y = np.meshgrid(_x, _y)
+
+                # Fit a gaussian
+                ig_a = np.max(mean_absolute_differences[j, k]) - np.min(mean_absolute_differences[j, k])
+                ig_x0 = peak_position[0]
+                ig_y0 = peak_position[1]
+                ig_sigma_x = 1
+                ig_sigma_y = 1
+                ig_bg = np.min(mean_absolute_differences[j, k])
+                b_a_i = 0
+                b_a_f = np.max(mean_absolute_differences[j, k]) - np.min(mean_absolute_differences[j, k])
+                b_x0_i = peak_position[0] - 2
+                b_x0_f = peak_position[0] + 2
+                b_y0_i = peak_position[1] - 2
+                b_y0_f = peak_position[1] + 2
+                b_sigma_x0_i = 0
+                b_sigma_x0_f = 2
+                b_sigma_y0_i = 0
+                b_sigma_y0_f = 2
+                b_bg_i = np.min(mean_absolute_differences[j, k])
+                b_bg_f = np.max(mean_absolute_differences[j, k])
+                bounds = ((b_a_i, b_x0_i, b_y0_i, b_sigma_x0_i, b_sigma_y0_i, b_bg_i),
+                (b_a_f, b_x0_f, b_y0_f, b_sigma_x0_f, b_sigma_y0_f , b_bg_f))
+                initial_guess = (ig_a, ig_x0, ig_y0, ig_sigma_x, ig_sigma_y, ig_bg)
+                popt, pcov = scipy.optimize.curve_fit(gaussian2D, (_x, _y), mean_absolute_differences[j, k].flatten(order = "F"), p0 = initial_guess, bounds = bounds, maxfev = 100000)
+
+                u_avg = popt[1] - ((iw2 - iw1) / 2)
+                v_avg = popt[2] - ((iw2 - iw1) / 2)
+            else:
+                u_avg = 0
+                v_avg = 0
+
+            """fig.add_subplot(width, height, k * width + j + 1)
+            #plt.imshow(gaussian2D((_x, _y), *popt).reshape(mean_absolute_differences[j, k].shape, order = "F"))
             plt.imshow(mean_absolute_differences[j,k])
             plt.axis('off')"""
-
-            # Get the minima of the absolute differences to find the average velocity vector
-            peak_position = np.unravel_index(mean_absolute_differences[j, k].argmin(),
-                                             mean_absolute_differences[j, k].shape)
-            u = peak_position[0] - ((iw2 - iw1) / 2)
-            v = peak_position[1] - ((iw2 - iw1) / 2)
-            u_avg = peak_position[0] - ((iw2 - iw1) / 2)
-            v_avg = peak_position[1] - ((iw2 - iw1) / 2)
 
             # Save to the arrays
             mean_velocity_field[j, k, :] = [x, y, u_avg, v_avg]
 
-    # plt.show()
+    #plt.show()
 
     end = time.time()
     print(f"Completed in {(end - start):.2f} seconds")
-    return velocity_field, mean_velocity_field, video.shape[1], video.shape[2], absolute_differences
+    return mean_velocity_field, video.shape[1], video.shape[2], image_intensity_sum, mean_absolute_differences
 
 
 def plot_fields(_animation):
-    field = get_particle_velocity_from_video(f"./data/processedzebra/{_animation}", 16, 32)
+    field = get_particle_velocity_from_video(f"./data/processedzebra/{_animation}", 12, 28)
 
-    x = field[1][:, :, 0]
-    y = field[1][:, :, 1]
-    u = field[1][:, :, 2]
-    v = field[1][:, :, 3]
+    x = field[0][:, :, 0]
+    y = field[0][:, :, 1]
+    u = field[0][:, :, 2]
+    v = field[0][:, :, 3]
     plt.title(f"Time averaged velocity field for {_animation}")
-    mag = np.sqrt(pow(np.array(field[1][:, :, 2]), 2) + pow(np.array(field[1][:, :, 3]), 2))
-    plt.quiver(x, y, u, v, mag, cmap="viridis")
+    plt.imshow(np.flip(np.flip(np.rot90(field[3])), axis = 1), cmap = "Greys", aspect = "auto")
+    mag = np.sqrt(pow(np.array(field[0][:, :, 2]), 2) + pow(np.array(field[0][:, :, 3]), 2))
+    plt.quiver(x, y, u / mag, v / mag, mag, cmap = "viridis")
     plt.colorbar()
-    plt.xlim(0, field[2])
-    plt.ylim(0, field[3])
+    plt.xlim(0, field[1])
+    plt.ylim(0, field[2])
     plt.savefig(f"./data/zebraaveraged/{_animation}.png")
     plt.show()
 
-    x = field[0][0, :, :, 0]
-    y = field[0][0, :, :, 1]
-    u = field[0][0, :, :, 2]
-    v = field[0][0, :, :, 3]
-    plt.title(f"Velocity field for {_animation}")
-    mag = np.sqrt(pow(np.array(field[0][0, :, :, 2]), 2) + pow(np.array(field[0][0, :, :, 3]), 2))
-    plt.quiver(x, y, u, v, mag, cmap="viridis")
-    plt.colorbar()
-    plt.xlim(0, field[2])
-    plt.ylim(0, field[3])
-    plt.show()
-
-    fig, ax = plt.subplots(1, 1)
-    q = ax.quiver(x, y, u, v, cmap="viridis")
+    """fig, ax = plt.subplots(1, 1)
+    q = ax.quiver(x, y, u, v, cmap = "viridis")
 
     def update_quiver(_f, _q):
         _q.set_UVC(field[0][_f, :, :, 2], field[0][_f, :, :, 3])
         return _q,
 
-    anim = animate.FuncAnimation(fig, update_quiver, fargs=(q,), frames=field[0].shape[0], interval=120,
-                                 blit=False)
+    anim = animate.FuncAnimation(fig, update_quiver, fargs = (q,), frames = field[0].shape[0], interval = 120,
+                                 blit = False)
 
-    writervideo = animate.FFMpegWriter(fps=5)
-    anim.save(f"./data/animated_fields/anim_{_animation}.mp4", writer=writervideo)
-    plt.close(fig)
+    writervideo = animate.FFMpegWriter(fps = 5)
+    anim.save(f"./data/animated_fields/anim_{_animation}.mp4", writer = writervideo)
+    plt.close(fig)"""
 
 
 for animation in os.listdir("./data/processedzebra/"):

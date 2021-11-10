@@ -5,9 +5,16 @@ import matplotlib.animation as animate
 import os
 import time
 # from scipy.signal import correlate2d
+import scipy.optimize
+
 
 # Settings
 # plt.style.use('dark_background')
+
+def gaussian2D(_xy, _a, _x0, _y0, _sigma_x, _sigma_y, _bg):
+    (_x, _y) = _xy
+    return (_bg + _a * np.exp(
+        -(((_x - _x0) ** 2 / (2 * _sigma_x ** 2)) + ((_y - _y0) ** 2 / (2 * _sigma_y ** 2))))).ravel()
 
 
 def get_particle_velocity_from_video(_filename, _iw1, _iw2, _frame_spacing):
@@ -68,8 +75,6 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _frame_spacing):
                     for n in range(0, iw2 - iw1):
                         iw1_a = iw2_a[m:m + iw1, n:n + iw1]
                         abs_diff_map[m, n] = np.sum(np.abs(iw1_a - iw1_b))
-                plt.plot(np.arange(len(abs_diff_map.flatten())),abs_diff_map.flatten())
-                plt.show()
 
                 """fig.add_subplot(width, height, k * height + j + 1)
                 plt.imshow(abs_diff_map)
@@ -77,13 +82,13 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _frame_spacing):
 
                 # Get the minima of the absolute differences to find the velocity vector
                 peak_position_i = np.unravel_index(abs_diff_map.argmin(), abs_diff_map.shape)
-                xc = yc = np.log(abs_diff_map[peak_position_i[0], peak_position_i[1]])
+                """xc = yc = np.log(abs_diff_map[peak_position_i[0], peak_position_i[1]])
                 xl = np.log(abs_diff_map[peak_position_i[0] - 1, peak_position_i[1]])
                 xr = np.log(abs_diff_map[peak_position_i[0] + 1, peak_position_i[1]])
                 ya = np.log(abs_diff_map[peak_position_i[0], peak_position_i[1] - 1])
                 yb = np.log(abs_diff_map[peak_position_i[0], peak_position_i[1] + 1])
                 subpixel_x = (xl - xr) / (2 * (xr - 2 * xc + xl))
-                subpixel_y = (ya - yb) / (2 * (yb - 2 * yc + ya))
+                subpixel_y = (ya - yb) / (2 * (yb - 2 * yc + ya))"""
                 u = peak_position_i[0] - ((iw2 - iw1) / 2)# + subpixel_x
                 v = peak_position_i[1] - ((iw2 - iw1) / 2)# + subpixel_y
 
@@ -93,31 +98,45 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _frame_spacing):
 
         #plt.show()
 
-    #fig, ax = plt.subplots(figsize = (20, 20), sharex = True)
+    fig, ax = plt.subplots(figsize = (20, 20), sharex = True)
 
     # Calculate the mean velocity field using the time averaged array of absolute differences
     mean_absolute_differences = np.mean(absolute_differences, axis = 0)
+    _x = np.arange(mean_absolute_differences[0, 0].shape[0])
+    _y = np.arange(mean_absolute_differences[0, 0].shape[1])
+    _x, _y = np.meshgrid(_x, _y)
     for j in range(0, width):
         for k in range(0, height):
             x = int((j + 0.5) * iw2)
             y = int((k + 0.5) * iw2)
 
-            """fig.add_subplot(width, height, k * height + j + 1)
-            plt.imshow(mean_absolute_differences[j,k])
-            plt.axis('off')"""
-
             # Get the minima of the absolute differences to find the average velocity vector
             peak_position = np.unravel_index(mean_absolute_differences[j, k].argmin(),
                                              mean_absolute_differences[j, k].shape)
-            u = peak_position[0] - ((iw2 - iw1) / 2)
-            v = peak_position[1] - ((iw2 - iw1) / 2)
             u_avg = peak_position[0] - ((iw2 - iw1) / 2)
             v_avg = peak_position[1] - ((iw2 - iw1) / 2)
+
+            # def gaussian2D(_xy, _a, _x0, _y0, _sigma_x, _sigma_y, _bg):
+            mean_absolute_differences[j, k] = -mean_absolute_differences[j, k]
+            initial_guess = (
+                np.max(mean_absolute_differences[j, k]) - np.min(mean_absolute_differences[j, k]), peak_position[0], peak_position[1], 1, 1,
+                np.min(mean_absolute_differences[j, k]))
+            popt, pcov = scipy.optimize.curve_fit(gaussian2D, (_x, _y), mean_absolute_differences[j, k].flatten(order = "F"),
+                                                  p0 = initial_guess,
+                                                  bounds = ((0, 0, 0, 0, 0, -np.inf), (np.inf, *mean_absolute_differences[j, k].shape, 1, 1, 0)), maxfev = 10000)
+
+            fig.add_subplot(width, height, j * height + k + 1)
+            plt.imshow(gaussian2D((_x, _y), *popt).reshape(mean_absolute_differences[j, k].shape, order = "F"))
+            #plt.imshow(mean_absolute_differences[j,k])
+            plt.axis('off')
+
+            u_avg = popt[1] - ((iw2 - iw1) / 2)
+            v_avg = popt[2] - ((iw2 - iw1) / 2)
 
             # Save to the arrays
             mean_velocity_field[j, k, :] = [x, y, u_avg, v_avg]
 
-    #plt.show()
+    plt.show()
 
     end = time.time()
     print(f"Completed in {(end - start):.2f} seconds")

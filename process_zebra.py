@@ -12,8 +12,6 @@ with open("data/zebrafish/params.plist", 'rb') as fp:
 for g, grouping in enumerate(plist):
     video_array = np.zeros((len(grouping) * 2, tf.imread(f"data/zebrafish/030298.tif").shape[1],
                             tf.imread(f"data/zebrafish/030298.tif").shape[2]))
-    print(video_array.shape)
-    print(len(grouping))
     f = 0
     for video in os.listdir("data/zebrafish/"):
         if video.endswith(".tif"):
@@ -26,3 +24,5 @@ for g, grouping in enumerate(plist):
                     video_array[f + 1] = current_video[frame - lower_index + 1]
                     f += 2
     tf.imwrite(f"data/processedzebra/{g}_testdata.tif", video_array.astype(np.int16))
+
+print("Finished")
