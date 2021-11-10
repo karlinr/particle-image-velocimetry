@@ -36,7 +36,7 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _inc):
     image_intensity_sum = np.sum(video, axis = 0)
     intensity_array = [np.sum(image_intensity_sum[j * inc: (j * inc) + iw2, k * inc: (k * inc) + iw2]) for j in
                        range(0, width) for k in range(0, height)]
-    intensity_array = [intensity_array / np.max(intensity_array) > 0.5]
+    intensity_array = [intensity_array / np.max(intensity_array) > 0.49]
     intensity_array = np.array(intensity_array).reshape((width, height))
 
     for i in range(0, frames, 2):
@@ -72,19 +72,11 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _inc):
                         for n in range(0, iw2 - iw1):
                             iw1_a = iw2_a[m:m + iw1, n:n + iw1]
                             abs_diff_map[m, n] = np.sum(np.abs(iw1_a - iw1_b))
-
-                    # Get the minima of the absolute differences to find the velocity vector
-                    peak_position_i = np.unravel_index(abs_diff_map.argmin(), abs_diff_map.shape)
-                    u = peak_position_i[0] - ((iw2 - iw1) / 2)  # + subpixel_x
-                    v = peak_position_i[1] - ((iw2 - iw1) / 2)  # + subpixel_y
                 else:
                     abs_diff_map = np.ones((iw2 - iw1, iw2 - iw1))
                     abs_diff_map[int((iw2 - iw1) / 2), int((iw2 - iw1) / 2)] = 0
-                    u = (iw2 - iw1) / 2
-                    v = (iw2 - iw1) / 2
 
                 # Save to the arrays
-                velocity_field[int(i / 2), j, k, :] = [x, y, u, v]
                 absolute_differences[int(i / 2), j, k, :, :] = abs_diff_map
 
     # Calculate the mean velocity field using the time averaged array of absolute differences
