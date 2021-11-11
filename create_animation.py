@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 # Animation variables
 animation_width = 352
 animation_height = 352
-animation_frames = 10
-particles = 1000
+animation_frames = 30
+particles = 2000
 particle_size = 9
 
 
