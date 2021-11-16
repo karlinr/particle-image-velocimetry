@@ -24,7 +24,6 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _inc):
 
     # Precompute some things
     iw_d = iw2 - iw1 + 1
-    iw2_h = np.floor(iw2 * 0.5)
 
     # Import video and get attributes
     video = tf.imread(_filename).astype(np.int16)
@@ -33,64 +32,60 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _inc):
     height = int(np.ceil((video.shape[2] - iw2) / inc))
 
     # Initialise arrays
-    velocity_field = np.empty((int(frames / 2), width, height, 4))
     mean_velocity_field = np.empty((width, height, 4))
     absolute_differences = np.empty((int(frames / 2), width, height, iw_d, iw_d))
+
     # Check for locations which contain particles
     image_intensity_sum = np.sum(video[::2], axis = 0)
     intensity_array = [np.sum(image_intensity_sum[j * inc: (j * inc) + iw2, k * inc: (k * inc) + iw2]) for j in
                        range(0, width) for k in range(0, height)]
     intensity_array = np.array([intensity_array / np.max(intensity_array) > 0.49]).reshape((width, height))
 
-    # Initialise arrays
-    abs_diff_map = np.ones((iw_d, iw_d))
-
     for i in range(0, frames, 2):
         b = video[i]
         a = video[i + 1]
 
         # Find the velocity field using the sum of absolute differences
-
         for j in range(0, width):
             for k in range(0, height):
                 if intensity_array[j, k]:
-                    # Get center of iw
-                    x = int(j * inc + iw2_h)
-                    y = int(k * inc + iw2_h)
+                    # Get coordinates
+                    tl_iw2_x = int(j * inc)
+                    tl_iw2_y = int(k * inc)
+                    br_iw2_x = int(tl_iw2_x + iw2)
+                    br_iw2_y = int(tl_iw2_y + iw2)
+                    tl_iw1_x = int(np.floor(tl_iw2_x + ((iw2 - iw1) / 2)))
+                    tl_iw1_y = int(np.floor(tl_iw2_y + ((iw2 - iw1) / 2)))
+                    br_iw1_x = int(tl_iw1_x + iw1)
+                    br_iw1_y = int(tl_iw1_y + iw1)
 
-                    # Get slice of image at larger interrogation window
-                    iw2_a = a[int(x - iw2_h):int(x + iw2_h), int(y - iw2_h):int(y + iw2_h)]
-                    print(iw2_a.shape)
-                    iw2_b = b[int(x - iw2_h):int(x + iw2_h), int(y - iw2_h):int(y + iw2_h)]
-                    print(iw2_b.shape)
-
-                    # Get slices for smaller interrogation window
-                    tl = int(np.floor(iw_d * 0.5))
-                    br = int(np.ceil((iw2 + iw1) * 0.5))
-                    iw1_a = iw2_a[tl:br, tl:br]
-                    print(iw1_a.shape)
-                    iw1_b = iw2_b[tl:br, tl:br]
+                    # Get larger interrogation window array
+                    template_to_match = b[tl_iw2_x:br_iw2_x, tl_iw2_y: br_iw2_y]
+                    template = a[tl_iw1_x:br_iw1_x, tl_iw1_y:br_iw1_y]
 
                     # Calculate the absolute differences for the interrogation window
-                    #abs_diff_map = np.array([np.sum(np.abs(iw2_b[m:m + iw1, n:n + iw1] - iw1_a)) for m in range(0, iw_d) for n in range(0, iw_d)]).reshape([iw_d, iw_d])
-                    abs_diff_map = msc.sad_correlation(iw1_a.astype(int), iw2_b.astype(int))
-                else:
-                    abs_diff_map = np.ones((iw_d, iw_d))
-                    abs_diff_map[int(iw_d * 0.5), int(iw_d * 0.5)] = 0
+                    abs_diff_map = msc.sad_correlation(template.astype(int), template_to_match.astype(int))
 
-                # Save to the arrays
-                absolute_differences[int(i / 2), j, k, :, :] = abs_diff_map
+                    # Save to the arrays
+                    absolute_differences[int(i / 2), j, k, :, :] = abs_diff_map
 
     # Calculate the mean velocity field using the time averaged array of absolute differences
-    # Get the mean of our absolute differences array for time averaged PIV
     mean_absolute_differences = np.mean(absolute_differences, axis = 0)
     #fig, ax = plt.subplots(figsize = (20, 20), sharex = True)
 
     for j in range(0, width):
         for k in range(0, height):
-            # Get center of iw2
-            x = int(j * inc + iw2 / 2)
-            y = int(k * inc + iw2 / 2)
+            # Get coordinates
+            tl_iw2_x = int(j * inc)
+            tl_iw2_y = int(k * inc)
+            br_iw2_x = int(tl_iw2_x + iw2)
+            br_iw2_y = int(tl_iw2_y + iw2)
+            tl_iw1_x = int(np.floor(tl_iw2_x + ((iw2 - iw1) / 2)))
+            tl_iw1_y = int(np.floor(tl_iw2_y + ((iw2 - iw1) / 2)))
+            br_iw1_x = int(tl_iw1_x + iw1)
+            br_iw1_y = int(tl_iw1_y + iw1)
+            x = (tl_iw1_x + br_iw1_x) / 2
+            y = (tl_iw1_y + br_iw1_y) / 2
 
             if intensity_array[j, k]:
                 # Get the minima of the absolute differences to find the average velocity vector
@@ -142,8 +137,12 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _inc):
 
             mean_velocity_field[j, k, :] = [x, y, u_avg, v_avg]
 
-    plt.plot(mean_velocity_field[:, 24, 0], np.sqrt(mean_velocity_field[:, 24, 1]**2 + mean_velocity_field[:, 24, 2]**2))
-    plt.show()
+    """plt.plot(mean_velocity_field[:, 24, 0], np.sqrt(mean_velocity_field[:, 24, 2]**2 + mean_velocity_field[:, 24, 3]**2))
+    plt.ylim(0, 5)
+    plt.xlim(0, 300)
+    plt.title(f"Velocity slice with inner interrogation window of size {iw1}px")
+    plt.savefig(f"data/processedzebraframe1/{iw1}.png")
+    plt.show()"""
 
     #plt.show()
 
@@ -154,12 +153,16 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _inc):
 
 def plot_fields(_animation):
     #field = get_particle_velocity_from_video(f"./data/processedzebra/{_animation}", 16, 32, 12)
+    """for window in range(1, 64):
+        field = get_particle_velocity_from_video(f"./data/processedzebra/{_animation}", window, window+16, 12)"""
+
     field = get_particle_velocity_from_video(f"./data/processedzebra/{_animation}", 16, 32, 12)
 
     x = field[0][:, :, 0]
     y = field[0][:, :, 1]
     u = field[0][:, :, 2]
     v = field[0][:, :, 3]
+
     plt.title(f"Time averaged velocity field for {_animation}")
     plt.imshow(np.flip(np.flip(np.rot90(field[3])), axis = 1), cmap = "Greys", aspect = "auto")
     mag = np.sqrt(pow(np.array(field[0][:, :, 2]), 2) + pow(np.array(field[0][:, :, 3]), 2))
