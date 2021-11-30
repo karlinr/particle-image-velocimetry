@@ -4,11 +4,14 @@ import tifffile as tf
 import time
 import field_functions
 import matplotlib.pyplot as plt
+import random
+
+random.seed()
 
 # Animation variables
 animation_width = 300
 animation_height = 300
-animation_frames = 98
+animation_frames = 300
 particles = 100
 particle_size = 6
 
@@ -21,17 +24,21 @@ def circular_gaussian(_x, _y, _mean_x, _mean_y, _sd):
 
 
 class Particle:
-    def __init__(self, _x, _y, _function, _brightness):
+    def __init__(self, _x, _y, _xvel, _yvel, _xsd, _ysd, _function, _brightness):
         # Assign particle variables
         self.function = _function
         self.brightness = _brightness
         self.x = _x
         self.y = _y
-        self.velocity_x, self.velocity_y = self.function(self.x, self.y)
+        self.xvel = _xvel
+        self.yvel = _yvel
+        self.xsd = _xsd
+        self.ysd = _ysd
+        self.velocity_x, self.velocity_y = self.function(self.x, self.y, self.xvel, self.yvel, self.xsd, self.ysd)
 
     def step(self):
         # Advance a frame
-        self.velocity_x, self.velocity_y = self.function(self.x, self.y)
+        self.velocity_x, self.velocity_y = self.function(self.x, self.y, self.xvel, self.yvel, self.xsd, self.ysd)
         self.x += self.velocity_x
         self.y += self.velocity_y
 
@@ -49,7 +56,7 @@ class Particle:
         self.y = random.randint(0, animation_height - 1)
 
 
-def make_animation(_function, _name):
+def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd):
     start = time.time()
     print(f"Creating animation of type {_name}...", end = "")
 
@@ -58,7 +65,8 @@ def make_animation(_function, _name):
     for i in range(particles):
         _x = random.randint(0, animation_width - 1)
         _y = random.randint(0, animation_height - 1)
-        a[i] = Particle(_x, _y, _function, random.uniform(0, 1))
+
+        a[i] = Particle(_x, _y, _xvel, _yvel, _xsd, _ysd, _function, random.uniform(0, 1))
 
     # Set up video array
     video_array = np.zeros((animation_frames, animation_width, animation_height), dtype=np.float64)
@@ -76,21 +84,22 @@ def make_animation(_function, _name):
         # Save current frame to video
         image_array = np.minimum(image_array, np.full(image_array.shape, 255))
         video_array[t] = image_array
+        print(f"Completed {t} of {animation_frames} frames")
 
     # Save to disk
     # noinspection PyTypeChecker
     tf.imwrite(f"data/animations/animation_{_name}.tif", video_array.astype(np.int8), compression = "zlib")
 
-    plot_field(_function, _name, animation_width, animation_height, 32)
+    plot_field(_function, _name, animation_width, animation_height, 32, _xvel, _yvel)
 
     # Measure execution time
     end = time.time()
     print(f" completed in {end - start:.2f} seconds")
 
 
-def plot_field(_function, _name, _width, _height, _window):
+def plot_field(_function, _name, _width, _height, _window, _xvel, _yvel):
     x, y = np.mgrid[int(_window / 2):int(_width):_window, int(_window / 2): int(_height):_window]
-    u,v = _function(x,y)
+    u,v = _function(x, y, _xvel, _yvel, 0, 0)
     mag = np.sqrt(pow(u, 2) + pow(v, 2))
     plt.figure()
     plt.quiver(x, y, u, v, mag, cmap = "viridis")
@@ -101,4 +110,4 @@ def plot_field(_function, _name, _width, _height, _window):
 
 
 # Make videos
-make_animation(field_functions.blood, "blood_flow")
+make_animation(field_functions.constant, "constant_300", 1, 1, 1, 1)

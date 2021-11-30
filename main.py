@@ -105,7 +105,7 @@ def get_correlation_matrices_from_video(_threshold_array = None):
     print(f"- Calculating frame correlation matrices over {frames} frames")
     for f in range(0, frames, 2):
         if f % 10 == 0 and f != 0:
-            print(f" - - frame {f} complete, {time.time() - start:.2f} seconds")
+            print(f" - - frame {f} complete")
         b = video[f]
         a = video[f + 1]
 
@@ -161,32 +161,32 @@ def get_velocity_vector_from_correlation_matrix(_admatrix):
     admatrix = _admatrix
     pfmethod = PIV.config("pfmethod")
 
-    peak_position_i = np.unravel_index(admatrix.argmin(), admatrix.shape)
+    peak_position = np.unravel_index(admatrix.argmin(), admatrix.shape)
 
     if pfmethod == "peak":
-        u = peak_position_i[0] - admatrix.shape[0] / 2
-        v = peak_position_i[1] - admatrix.shape[0] / 2
+        u = peak_position[0]- admatrix.shape[0] / 2
+        v = peak_position[1] - admatrix.shape[0] / 2
     elif pfmethod == "fivepointgaussian":
-        if admatrix.shape < peak_position_i < (0, 0):
-            xc = yc = np.log(admatrix[peak_position_i[0], peak_position_i[1]])
-            xl = np.log(admatrix[peak_position_i[0] - 1, peak_position_i[1]])
-            xr = np.log(admatrix[peak_position_i[0] + 1, peak_position_i[1]])
-            ya = np.log(admatrix[peak_position_i[0], peak_position_i[1] - 1])
-            yb = np.log(admatrix[peak_position_i[0], peak_position_i[1] + 1])
+        if admatrix.shape[0] - 1 > peak_position[0] > 0 and admatrix.shape[1] - 1 > peak_position[1] > 0:
+            xc = yc = np.log(admatrix[peak_position[0], peak_position[1]])
+            xl = np.log(admatrix[peak_position[0] - 1, peak_position[1]])
+            xr = np.log(admatrix[peak_position[0] + 1, peak_position[1]])
+            ya = np.log(admatrix[peak_position[0], peak_position[1] - 1])
+            yb = np.log(admatrix[peak_position[0], peak_position[1] + 1])
             subpixel = [(xl - xr) / (2 * (xr - 2 * xc + xl)), (ya - yb) / (2 * (yb - 2 * yc + ya))]
-            u = peak_position_i[0] - admatrix.shape[0] / 2 + subpixel[0]
-            v = peak_position_i[1] - admatrix.shape[1] / 2 + subpixel[1]
+            u = peak_position[0] - (admatrix.shape[0] - 1) / 2 + subpixel[0]
+            v = peak_position[1] - (admatrix.shape[1] - 1) / 2 + subpixel[1]
         else:
-            u = peak_position_i[0] - admatrix.shape[0] / 2
-            v = peak_position_i[1] - admatrix.shape[0] / 2
+            u = peak_position[0] - (admatrix.shape[0] - 1) / 2
+            v = peak_position[1] - (admatrix.shape[0] - 1) / 2
     elif pfmethod == "gaussian":
         # Fit a gaussian
         _x, _y = np.meshgrid(np.arange(admatrix.shape[0]), np.arange(admatrix.shape[1]))
 
         # Initial values
         ig_a = -np.max(admatrix)
-        ig_x0 = peak_position_i[0]
-        ig_y0 = peak_position_i[1]
+        ig_x0 = peak_position[0]
+        ig_y0 = peak_position[1]
         ig_sigma_x = 1
         ig_sigma_y = 1
         ig_bg = np.max(admatrix)
@@ -195,14 +195,14 @@ def get_velocity_vector_from_correlation_matrix(_admatrix):
         # Boundaries
         b_a_i = -np.max(admatrix) - 5
         b_a_f = 0
-        b_x0_i = peak_position_i[0] - 3
-        b_x0_f = peak_position_i[0] + 3
-        b_y0_i = peak_position_i[1] - 3
-        b_y0_f = peak_position_i[1] + 3
+        b_x0_i = peak_position[0] - 1
+        b_x0_f = peak_position[0] + 1
+        b_y0_i = peak_position[1] - 1
+        b_y0_f = peak_position[1] + 1
         b_sigma_x0_i = 0
-        b_sigma_x0_f = 6
+        b_sigma_x0_f = 2
         b_sigma_y0_i = 0
-        b_sigma_y0_f = 6
+        b_sigma_y0_f = 2
         b_bg_i = np.max(admatrix) - 5
         b_bg_f = np.max(admatrix) + 5
         bounds = ((b_a_i, b_x0_i, b_y0_i, b_sigma_x0_i, b_sigma_y0_i, b_bg_i),
@@ -211,8 +211,8 @@ def get_velocity_vector_from_correlation_matrix(_admatrix):
         popt, pcov = scipy.optimize.curve_fit(gaussian2D, (_x, _y),
                                               admatrix.ravel(order = "F"),
                                               p0 = initial_guess, bounds = bounds, maxfev = 100000)
-        u = popt[1] - admatrix.shape[0] / 2
-        v = popt[2] - admatrix.shape[0] / 2
+        u = popt[1] - (admatrix.shape[0] - 1) / 2
+        v = popt[2] - (admatrix.shape[1] - 1) / 2
     else:
         print("Invalid method.")
         u = 0
@@ -245,26 +245,61 @@ def get_velocity_field_from_correlation_matrix(_correlation_matrices, _threshold
     return velocity_field
 
 
-PIV.set("filename", "./data/processedzebra/0_testdata.tif")
+# PIV config
+PIV.set("filename", "./data/animations/animation_constant_300.tif")
 PIV.set("iw1", 16)
 PIV.set("iw2", 48)
 PIV.set("inc", 6)
 PIV.set("threshold", 0.215)
 PIV.set("pfmethod", "fivepointgaussian")
 
+# Do PIV
 intsum = get_image_intensity_sum_from_video()
 thrarr = get_threshold_array_from_intensity_array(intsum)
 cormat = get_correlation_matrices_from_video(thrarr)
 avgmat = get_correlation_average_matrix_from_correlation_matrices(cormat)
+vel_field = get_velocity_field_from_correlation_matrix(cormat, thrarr)
 vel_field_avg = get_velocity_field_from_correlation_matrix(avgmat, thrarr)
 
+# Plot
 mag = np.sqrt(pow(np.array(vel_field_avg[0][:, :, 2]), 2) + pow(np.array(vel_field_avg[0][:, :, 3]), 2))
-
 plt.figure(figsize = (16, 12))
 plt.imshow(np.flip(np.flip(np.rot90(intsum), axis = 1)), cmap = "Greys", aspect = "auto")
-plt.quiver(vel_field_avg[0][:, :, 0], vel_field_avg[0][:, :, 1], vel_field_avg[0][:, :, 2] / mag,
-           vel_field_avg[0][:, :, 3] / mag, mag)
+plt.quiver(vel_field_avg[0][:, :, 0], vel_field_avg[0][:, :, 1], vel_field_avg[0][:, :, 2] / mag,vel_field_avg[0][:, :, 3] / mag, mag)
 plt.colorbar()
 plt.xlim(0, intsum.shape[0])
 plt.ylim(0, intsum.shape[1])
+plt.show()
+
+means = []
+stds = []
+
+for i in range(vel_field.shape[0]):
+    means.append((np.nanmean(vel_field[i][thrarr, 2]), np.nanmean(vel_field[i][thrarr, 3])))
+    stds.append((np.nanstd(vel_field[i][thrarr, 2]), np.nanstd(vel_field[i][thrarr, 2])))
+
+print("Non-correlation Averaged")
+print(f"x Velocity:{np.mean(means[0]):.2f} +/- {np.mean(stds[0]):.2f}")
+print(f"y Velocity:{np.mean(means[1]):.2f} +/- {np.mean(stds[1]):.2f}")
+
+print("Correlation Averaged")
+print(f"x Velocity:{np.mean(vel_field_avg[0][thrarr, 2]):.2f} +/- {np.std(vel_field_avg[0][thrarr, 2]):.2f}")
+print(f"y Velocity:{np.mean(vel_field_avg[0][thrarr, 3]):.2f} +/- {np.std(vel_field_avg[0][thrarr, 3]):.2f}")
+plt.hist(vel_field_avg[0][thrarr, 2].ravel(), bins = 70)
+plt.show()
+plt.hist(vel_field_avg[0][thrarr, 3].ravel(), bins = 70)
+plt.show()
+
+frames = [49, 49, 5, 5, 10, 10, 15, 15, 20, 20, 25, 25, 40, 40, 30, 30, 35, 35, 150, 150]
+ratio = [5.10 / 0.19, 4.28 / 0.20, 5.24 / 0.64, 4.55 / 0.65, 5.27 / 0.47, 5.25 / 0.46, 4.69 / 0.39, 5.23 / 0.38, 5.47 / 0.33, 4.60 / 0.34, 6.45 / 0.29, 4.09 / 0.31, 5.46 / 0.23, 5.36 / 0.21, 4.63 / 0.27, 4.96 / 0.30, 5.99 / 0.25, 4.69 / 0.22, 0, 0]
+
+fit = np.polyfit(frames, ratio, 1)
+xs = np.arange(np.min(frames), np.max(frames), 1)
+print(xs)
+print(fit)
+plt.plot(xs, fit[0] * xs + fit[1])
+
+plt.scatter(frames, ratio)
+plt.ylabel("Std Dev: Std Dev Cor Avg")
+plt.xlabel("Frame Pairs")
 plt.show()
