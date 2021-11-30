@@ -5,13 +5,14 @@ import os
 import time
 import scipy.optimize
 import msl_sad_correlation as msc
-from matplotlib.colors import Normalize
-import matplotlib.cm as cm
+import numexpr as ne
+import math
+
 
 def gaussian2D(_xy, _a, _x0, _y0, _sigma_x, _sigma_y, _bg):
     (_x, _y) = _xy
-    return (_bg + _a * np.exp(
-        -(((_x - _x0) ** 2 / (2 * _sigma_x ** 2)) + ((_y - _y0) ** 2 / (2 * _sigma_y ** 2))))).ravel()
+    return (
+    (_bg + _a * np.exp(-(((_x - _x0) ** 2 / (2 * _sigma_x ** 2)) + ((_y - _y0) ** 2 / (2 * _sigma_y ** 2)))))).ravel()
 
 
 def get_particle_velocity_from_video(_filename, _iw1, _iw2, _inc):
@@ -28,7 +29,7 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _inc):
 
     # Import video and get attributes
     print(filename)
-    #video = np.pad(tf.imread(_filename).astype(np.int16), ((0, 0), (iw2, iw2), (iw2, iw2)), "minimum")
+    # video = np.pad(tf.imread(_filename).astype(np.int16), ((0, 0), (iw2, iw2), (iw2, iw2)), "minimum")
     video = tf.imread(_filename).astype(np.int16)
     frames = int(video.shape[0])
     width = int(np.ceil((video.shape[1] - iw2) / inc))
@@ -38,23 +39,24 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _inc):
     print(f"IW1 : {iw1}; IW2 : {iw2}; Increment : {inc}")
 
     # Initialise arrays
-    velocity_field = np.empty((frames // 2, width, height, 4))
+    velocity_field = np.zeros((frames // 2, width, height, 4))
     mean_velocity_field = np.empty((width, height, 4))
-    absolute_differences = np.empty((frames // 2, width, height, iw_d, iw_d))
+    absolute_differences = np.empty((frames // 2, width, height, iw_d, iw_d), dtype = np.int_)
+    print(absolute_differences.nbytes / 1024 / 1024)
 
     # Check for locations which contain particles
     image_intensity_sum = np.sum(video[::2], axis = 0)
     intensity_array = [np.sum(image_intensity_sum[j * inc: (j * inc) + iw2, k * inc: (k * inc) + iw2]) for j in
                        range(0, width) for k in range(0, height)]
     intensity_array = intensity_array - np.min(intensity_array)
-    #0.215
+    # 0.215
     intensity_array = np.array([intensity_array / np.max(intensity_array) >= 0.215]).reshape((width, height))
 
     # Calculate the correlation matrices for each frame pair
     print(f"- Calculating frame correlation matrices over {frames} frames")
     for i in range(0, frames, 2):
-        if i % 10 == 0:
-            print(f" - - frame {i} complete")
+        if i % 10 == 0 and i != 0:
+            print(f" - - frame {i} complete, {time.time() - start:.2f} seconds")
         b = video[i]
         a = video[i + 1]
 
@@ -89,19 +91,18 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _inc):
                     # Save to the arrays
                     velocity_field[i // 2, j, k, :] = [x, y, u, v]
                     absolute_differences[int(i / 2), j, k, :, :] = abs_diff_map
-                else:
-                    velocity_field[i // 2, j, k, :] = [0, 0, 0, 0]
-
-
+    print(np.max(absolute_differences))
+    print(np.min(absolute_differences))
     # Calculate the mean velocity field using the time averaged array of absolute differences
     print(f" - Performing correlation averaging over {width} columns")
 
-    mean_absolute_differences = np.mean(absolute_differences, axis = 0)
-    #fig, ax = plt.subplots(figsize = (20, 20), sharex = True)
+    mean_absolute_differences = - np.mean(absolute_differences, axis = 0)
+    # fig, ax = plt.subplots(figsize = (20, 20), sharex = True)
+    _x, _y = np.meshgrid(np.arange(iw_d), np.arange(iw_d))
 
     for j in range(0, width):
-        if j % 10 == 0:
-            print(f" - - column {j} complete")
+        if j % 10 == 0 and j != 0:
+            print(f" - - column {j} complete, {time.time() - start:.2f} seconds")
         for k in range(0, height):
             # Get coordinates
             tl_iw2_x = int(j * inc)
@@ -115,13 +116,8 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _inc):
 
             if intensity_array[j, k]:
                 # Get the minima of the absolute differences to find the average velocity vector
-                peak_position = np.unravel_index(mean_absolute_differences[j, k].argmin(),
+                peak_position = np.unravel_index(mean_absolute_differences[j, k].argmax(),
                                                  mean_absolute_differences[j, k].shape)
-
-                mean_absolute_differences[j, k] = -mean_absolute_differences[j, k]
-                _x = np.arange(mean_absolute_differences[j, k].shape[0])
-                _y = np.arange(mean_absolute_differences[j, k].shape[1])
-                _x, _y = np.meshgrid(_x, _y)
 
                 # Fit a gaussian
                 ig_a = np.max(mean_absolute_differences[j, k]) - np.min(mean_absolute_differences[j, k])
@@ -146,7 +142,7 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _inc):
                           (b_a_f, b_x0_f, b_y0_f, b_sigma_x0_f, b_sigma_y0_f, b_bg_f))
                 initial_guess = (ig_a, ig_x0, ig_y0, ig_sigma_x, ig_sigma_y, ig_bg)
                 popt, pcov = scipy.optimize.curve_fit(gaussian2D, (_x, _y),
-                                                      mean_absolute_differences[j, k].flatten(order = "F"),
+                                                      mean_absolute_differences[j, k].ravel(order = "F"),
                                                       p0 = initial_guess, bounds = bounds, maxfev = 100000)
                 u_avg = -(popt[1] - ((iw2 - iw1) / 2))
                 v_avg = -(popt[2] - ((iw2 - iw1) / 2))
@@ -162,8 +158,8 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _inc):
             # Save to the arrays
             mean_velocity_field[j, k, :] = [x, y, u_avg, v_avg]
 
-    #plt.savefig(f"data/processedzebraframe1/correlation_matrix/{iw1}.png")
-    #plt.show()
+    # plt.savefig(f"data/processedzebraframe1/correlation_matrix/{iw1}.png")
+    # plt.show()
 
     absolute_differences_good = absolute_differences
     absolute_differences_bad = np.empty((frames // 2, width, height, iw_d, iw_d))
@@ -172,8 +168,8 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _inc):
     for i, frame in enumerate(velocity_field):
         for j in range(0, width):
             for k in range(0, height):
-                mag1 = np.sqrt(frame[j, k, 2]**2 + frame[j, k, 3]**2)
-                mag2 = np.sqrt(mean_velocity_field[j, k, 2]**2 + mean_velocity_field[j, k, 3]**2)
+                mag1 = np.sqrt(frame[j, k, 2] ** 2 + frame[j, k, 3] ** 2)
+                mag2 = np.sqrt(mean_velocity_field[j, k, 2] ** 2 + mean_velocity_field[j, k, 3] ** 2)
                 if np.abs(mag2 - mag1) > 1:
                     absolute_differences_bad[i, j, k, :] = absolute_differences_good[i, j, k, :]
                     absolute_differences_good[i, j, k, :] = 0
@@ -182,7 +178,8 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _inc):
     for frame in velocity_field:
         for j in range(0, width):
             for k in range(0, height):
-                peak_ratios[j, k, :] = [np.max(mean_absolute_differences[j, k, :]) / np.max(mean_absolute_differences_bad[j, k, :])]
+                peak_ratios[j, k, :] = [
+                    np.max(mean_absolute_differences[j, k, :]) / np.max(mean_absolute_differences_bad[j, k, :])]
                 """fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
                 norm = Normalize(0, np.min(mean_absolute_differences[j, k, :]))
                 im = cm.ScalarMappable(norm = norm)
@@ -204,7 +201,6 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _inc):
                 plt.colorbar(im, ax = [ax1, ax2, ax3])
                 plt.show()"""
 
-
     """M = np.sqrt(mean_velocity_field[:, :, 2] ** 2 + mean_velocity_field[:, :, 3] ** 2) -3
     plt.title(f"Vector magnitude with inner interrogation window of size {iw1}px")
     plt.imshow(M, cmap = "Spectral")
@@ -213,14 +209,16 @@ def get_particle_velocity_from_video(_filename, _iw1, _iw2, _inc):
     plt.savefig(f"data/analysis/{iw1}.png")
     plt.show()"""
 
+    # np.savez_compressed(f"./data/np/{os.path.basename(os.path.splitext(filename)[0])}_{video.shape[1]}_{video.shape[2]}_{iw1}_{iw2}_{inc}_mean_field.npy", mean_velocity_field)
+    # np.savez_compressed(f"./data/np/{os.path.basename(os.path.splitext(filename)[0])}_{video.shape[1]}_{video.shape[2]}_{iw1}_{iw2}_{inc}_image_intensity_sum.npy", image_intensity_sum)
+    # np.savez_compressed(f"./data/np/{os.path.basename(os.path.splitext(filename)[0])}_{video.shape[1]}_{video.shape[2]}_{iw1}_{iw2}_{inc}_mean_absolute_differences.npy", mean_absolute_differences)
+    # np.savez_compressed(f"./data/np/{os.path.basename(os.path.splitext(filename)[0])}_{video.shape[1]}_{video.shape[2]}_{iw1}_{iw2}_{inc}_absolute_differences.npy", absolute_differences)
+
     end = time.time()
     print(f"Completed in {(end - start):.2f} seconds", end = "\n\n")
 
-    #np.save(f"./data/np/{os.path.basename(os.path.splitext(filename)[0])}_{video.shape[1]}_{video.shape[2]}_{iw1}_{iw2}_{inc}_mean_field.npy", mean_velocity_field)
-    #np.save(f"./data/np/{os.path.basename(os.path.splitext(filename)[0])}_{video.shape[1]}_{video.shape[2]}_{iw1}_{iw2}_{inc}_image_intensity_sum.npy", image_intensity_sum)
-    #np.save(f"./data/np/{os.path.basename(os.path.splitext(filename)[0])}_{video.shape[1]}_{video.shape[2]}_{iw1}_{iw2}_{inc}_mean_absolute_differences.npy", mean_absolute_differences)
-
-    return mean_velocity_field, video.shape[1], video.shape[2], image_intensity_sum, mean_absolute_differences, peak_ratios
+    return mean_velocity_field, video.shape[1], video.shape[
+        2], image_intensity_sum, mean_absolute_differences, peak_ratios
 
 
 def plot_fields(_animation):
@@ -238,10 +236,10 @@ def plot_fields(_animation):
 
     iw1 = 16
     iw2 = 48
-    int = 6
+    int = 8
 
     field = get_particle_velocity_from_video(f"./data/processedzebra/{_animation}", iw1, iw2, int)
-    #field = get_particle_velocity_from_video(f"./data/processedzebraframe1/0_testdata.tif", iw1, iw2, int)
+    # field = get_particle_velocity_from_video(f"./data/processedzebraframe1/0_testdata.tif", iw1, iw2, int)
 
     x = field[0][:, :, 0]
     y = field[0][:, :, 1]
@@ -250,21 +248,22 @@ def plot_fields(_animation):
 
     plt.figure(figsize = (12, 9))
     plt.margins(iw2)
-    plt.imshow(np.rot90(field[5]), cmap = "viridis", aspect = "auto", extent = [iw2 / 2, field[5].shape[0] * int + iw2 / 2, iw2 / 2, field[5].shape[1] * int + iw2 / 2])
+    plt.imshow(np.rot90(field[5]), cmap = "viridis", aspect = "auto",
+               extent = [iw2 / 2, field[5].shape[0] * int + iw2 / 2, iw2 / 2, field[5].shape[1] * int + iw2 / 2])
     plt.colorbar()
     mag = np.sqrt(pow(np.array(field[0][:, :, 2]), 2) + pow(np.array(field[0][:, :, 3]), 2))
-    #plt.quiver(x + int / 2, y + int / 2, u / mag, v / mag, mag)
-    #plt.colorbar()
+    # plt.quiver(x + int / 2, y + int / 2, u / mag, v / mag, mag)
+    # plt.colorbar()
     plt.savefig(f"./data/analysis/err_{_animation}.png")
     plt.show()
 
     plt.figure(figsize = (12, 9))
     plt.title(f"Time averaged velocity field for {_animation}")
     plt.imshow(np.flip(np.flip(np.rot90(field[3])), axis = 1), cmap = "Greys", aspect = "auto")
-    #plt.imshow(np.flip(np.flip(np.rot90(field[5])), axis = 1), cmap = "Greys", aspect = "auto")
+    # plt.imshow(np.flip(np.flip(np.rot90(field[5])), axis = 1), cmap = "Greys", aspect = "auto")
     mag = np.sqrt(pow(np.array(field[0][:, :, 2]), 2) + pow(np.array(field[0][:, :, 3]), 2))
     plt.quiver(x, y, u / mag, v / mag, mag, cmap = "viridis")
-    #plt.clim(0, 6)
+    # plt.clim(0, 6)
     plt.colorbar()
     plt.xlim(0, field[1])
     plt.ylim(0, field[2])
