@@ -9,22 +9,26 @@ import random
 random.seed()
 
 # Animation variables
-animation_width = 300
-animation_height = 300
-animation_frames = 300
-particles = 100
-particle_size = 6
+animation_width = 320
+animation_height = 320
+animation_frames = 200
+particles = 35
+particle_size = 8
 
 
 # Returns a gaussian
 # https://mathworld.wolfram.com/GaussianFunction.html
-def circular_gaussian(_x, _y, _mean_x, _mean_y, _sd):
-    sd2 = 2 * _sd**2
-    return (1 / (np.pi * sd2)) * np.exp(-((_x-_mean_x)**2 + (_y - _mean_y)**2) / (sd2)) * 255
+def circular_gaussian(_x, _y, _mean_x, _mean_y, _sdx, _sdy, _theta):
+    _xd = (_x - _mean_x)
+    _yd = (_y - _mean_y)
+
+    _xdr = _xd * np.cos(_theta) - _yd * np.sin(_theta)
+    _ydr = _xd * np.sin(_theta) + _yd * np.cos(_theta)
+    return 2**16 * np.exp(-(((_xdr)**2 / (2 * _sdx**2)) + ((_ydr)**2 / (2 * _sdy**2))))
 
 
 class Particle:
-    def __init__(self, _x, _y, _xvel, _yvel, _xsd, _ysd, _function, _brightness):
+    def __init__(self, _x, _y, _xvel, _yvel, _xsd, _ysd, _function, _brightness, _theta):
         # Assign particle variables
         self.function = _function
         self.brightness = _brightness
@@ -34,6 +38,7 @@ class Particle:
         self.yvel = _yvel
         self.xsd = _xsd
         self.ysd = _ysd
+        self.theta = _theta
         self.velocity_x, self.velocity_y = self.function(self.x, self.y, self.xvel, self.yvel, self.xsd, self.ysd)
 
     def step(self):
@@ -58,7 +63,7 @@ class Particle:
 
 def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd):
     start = time.time()
-    print(f"Creating animation of type {_name}...", end = "")
+    print(f"Creating animation of type {_name}...")
 
     # Setup particles
     a = np.empty(particles + 1, dtype=object)
@@ -66,29 +71,30 @@ def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd):
         _x = random.randint(0, animation_width - 1)
         _y = random.randint(0, animation_height - 1)
 
-        a[i] = Particle(_x, _y, _xvel, _yvel, _xsd, _ysd, _function, random.uniform(0, 1))
+        a[i] = Particle(_x, _y, _xvel, _yvel, _xsd, _ysd, _function, 0.25 * random.uniform(0, 1), random.uniform(0, 2 * np.pi))
+        #a[i] = Particle(_x, _y, _xvel, _yvel, _xsd, _ysd, _function, 1)
 
     # Set up video array
-    video_array = np.zeros((animation_frames, animation_width, animation_height), dtype=np.float64)
+    video_array = np.zeros((animation_frames, animation_width, animation_height), dtype=np.int_)
 
     # Simulate particles
     for t in range(animation_frames):
-        image_array = np.zeros((animation_width, animation_height), dtype=np.float64)
+        image_array = np.zeros((animation_width, animation_height), dtype=np.int_)
         for i in range(particles):
             if t % 2 == 0:
                 a[i].randomise_position()
             a[i].step()
             for _x in range(max([0, int(a[i].x - particle_size * 4)]), min([animation_width, int(a[i].x + particle_size * 4)])):
                 for _y in range(max([0, int(a[i].y - particle_size * 4)]), min([animation_height, int(a[i].y + particle_size * 4)])):
-                    image_array[_x, _y] += a[i].brightness * circular_gaussian(_x, _y, a[i].x, a[i].y, particle_size) * 30
+                    image_array[_x, _y] += a[i].brightness * circular_gaussian(_x, _y, a[i].x, a[i].y, particle_size, 1.1 * particle_size, a[i].theta)
         # Save current frame to video
-        image_array = np.minimum(image_array, np.full(image_array.shape, 255))
+        image_array = np.minimum(image_array, np.full(image_array.shape, 2**16 - 1))
         video_array[t] = image_array
         print(f"Completed {t} of {animation_frames} frames")
 
     # Save to disk
     # noinspection PyTypeChecker
-    tf.imwrite(f"data/animations/animation_{_name}.tif", video_array.astype(np.int8), compression = "zlib")
+    tf.imwrite(f"data/animations/animation_{_name}.tif", video_array.astype(np.ushort), compression = "zlib")
 
     plot_field(_function, _name, animation_width, animation_height, 32, _xvel, _yvel)
 
@@ -99,7 +105,7 @@ def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd):
 
 def plot_field(_function, _name, _width, _height, _window, _xvel, _yvel):
     x, y = np.mgrid[int(_window / 2):int(_width):_window, int(_window / 2): int(_height):_window]
-    u,v = _function(x, y, _xvel, _yvel, 0, 0)
+    u, v = _function(x, y, _xvel, _yvel, 0, 0)
     mag = np.sqrt(pow(u, 2) + pow(v, 2))
     plt.figure()
     plt.quiver(x, y, u, v, mag, cmap = "viridis")
@@ -110,4 +116,4 @@ def plot_field(_function, _name, _width, _height, _window, _xvel, _yvel):
 
 
 # Make videos
-make_animation(field_functions.constant, "constant_300", 1, 1, 1, 1)
+make_animation(field_functions.constant_with_gradient, "constant_width_gradient_98", 0, 1, 0, 0)

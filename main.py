@@ -1,7 +1,6 @@
 import numpy as np
 import tifffile as tf
 import matplotlib.pyplot as plt
-import os
 import time
 import scipy.optimize
 import msl_sad_correlation as msc
@@ -21,10 +20,21 @@ class PIV:
 
     @staticmethod
     def config(name):
+        """
+
+        :param name:
+        :return:
+        """
         return PIV.__conf[name]
 
     @staticmethod
     def set(name, value):
+        """
+
+        :param name:
+        :param value:
+        :return:
+        """
         if name in PIV.__setters:
             PIV.__conf[name] = value
             print(f"{name} set to {PIV.__conf[name]}")
@@ -42,12 +52,8 @@ def gaussian2D(_xy, _a, _x0, _y0, _sigma_x, _sigma_y, _bg):
 def get_image_intensity_sum_from_video():
     # Get vars
     filename = PIV.config("filename")
-    iw2 = PIV.config("iw2")
-    inc = PIV.config("inc")
 
     video = tf.imread(filename).astype(np.int16)
-    width = int(np.ceil((video.shape[1] - iw2) / inc))
-    height = int(np.ceil((video.shape[2] - iw2) / inc))
 
     intensity_array = np.sum(video[::2], axis = 0)
 
@@ -76,6 +82,12 @@ def get_threshold_array_from_intensity_array(intensity_array):
 
 
 def get_correlation_matrices_from_video(_threshold_array = None):
+    """
+    Takes the current video and threshold array and ouputs array of correlation matrices for every frame.
+
+    :param _threshold_array:
+    :return: array of absolute differences for every frame
+    """
     # Get vars
     filename = PIV.config("filename")
     iw1 = PIV.config("iw1")
@@ -122,8 +134,6 @@ def get_correlation_matrices_from_video(_threshold_array = None):
                     tl_iw1_y = int(np.floor(tl_iw2_y + ((iw2 - iw1) / 2)))
                     br_iw1_x = int(tl_iw1_x + iw1)
                     br_iw1_y = int(tl_iw1_y + iw1)
-                    x = (tl_iw1_x + br_iw1_x) / 2
-                    y = (tl_iw1_y + br_iw1_y) / 2
 
                     # Get larger interrogation window array
                     template_to_match = b[tl_iw2_x:br_iw2_x, tl_iw2_y: br_iw2_y]
@@ -139,6 +149,12 @@ def get_correlation_matrices_from_video(_threshold_array = None):
 
 
 def get_correlation_average_matrix_from_correlation_matrices(absolute_differences):
+    """
+    Takes the array of correlation matrices over every frame and outputs an averaged array.
+
+    :param absolute_differences: absolute differences array for every frame
+    :return: mean absolute differences array
+    """
     iw1 = PIV.config("iw1")
     iw2 = PIV.config("iw2")
     width = absolute_differences.shape[1]
@@ -151,12 +167,12 @@ def get_correlation_average_matrix_from_correlation_matrices(absolute_difference
 
 
 def get_velocity_vector_from_correlation_matrix(_admatrix):
-    # Takes a correlation matrix and finds velocity vector
-    # _admatrix - absolute difference matrix
-    # pfmethod - Peak finding method
-    #   "minima"            -   Uses the minima of the correlation matrix
-    #   "fivepointgaussian" -   Uses five-point Gaussian interpolation
-    #   "gaussian"          -   Uses a Gaussian fit
+    """
+    Takes a correlation matrix and returns the velocity vector.
+
+    :param np.array _admatrix: 2d numpy array of absolute differences
+    :return: u,v velocity vector tuple
+    """
 
     admatrix = _admatrix
     pfmethod = PIV.config("pfmethod")
@@ -164,7 +180,7 @@ def get_velocity_vector_from_correlation_matrix(_admatrix):
     peak_position = np.unravel_index(admatrix.argmin(), admatrix.shape)
 
     if pfmethod == "peak":
-        u = peak_position[0]- admatrix.shape[0] / 2
+        u = peak_position[0] - admatrix.shape[0] / 2
         v = peak_position[1] - admatrix.shape[0] / 2
     elif pfmethod == "fivepointgaussian":
         if admatrix.shape[0] - 1 > peak_position[0] > 0 and admatrix.shape[1] - 1 > peak_position[1] > 0:
@@ -226,7 +242,6 @@ def get_velocity_field_from_correlation_matrix(_correlation_matrices, _threshold
     frames = correlation_matrices.shape[0]
     width = correlation_matrices.shape[1]
     height = correlation_matrices.shape[2]
-    iw1 = PIV.config("iw1")
     iw2 = PIV.config("iw2")
     inc = PIV.config("inc")
     velocity_field = np.zeros((frames, width, height, 4))
@@ -246,30 +261,34 @@ def get_velocity_field_from_correlation_matrix(_correlation_matrices, _threshold
 
 
 # PIV config
-PIV.set("filename", "./data/animations/animation_constant_300.tif")
-PIV.set("iw1", 16)
-PIV.set("iw2", 48)
-PIV.set("inc", 6)
+PIV.set("filename", "./data/animations/animation_constant_width_gradient_98.tif")
+PIV.set("iw1", 8)
+PIV.set("iw2", 32)
+PIV.set("inc", 3)
 PIV.set("threshold", 0.215)
+PIV.set("threshold", -1)
 PIV.set("pfmethod", "fivepointgaussian")
 
-# Do PIV
-intsum = get_image_intensity_sum_from_video()
-thrarr = get_threshold_array_from_intensity_array(intsum)
-cormat = get_correlation_matrices_from_video(thrarr)
-avgmat = get_correlation_average_matrix_from_correlation_matrices(cormat)
-vel_field = get_velocity_field_from_correlation_matrix(cormat, thrarr)
-vel_field_avg = get_velocity_field_from_correlation_matrix(avgmat, thrarr)
+for i in [16]:
+    # Do PIV
+    PIV.set("iw1", i)
+    PIV.set("iw2", 16+i)
+    intsum = get_image_intensity_sum_from_video()
+    thrarr = get_threshold_array_from_intensity_array(intsum)
+    cormat = get_correlation_matrices_from_video(thrarr)
+    avgmat = get_correlation_average_matrix_from_correlation_matrices(cormat)
+    vel_field = get_velocity_field_from_correlation_matrix(cormat, thrarr)
+    vel_field_avg = get_velocity_field_from_correlation_matrix(avgmat, thrarr)
 
-# Plot
-mag = np.sqrt(pow(np.array(vel_field_avg[0][:, :, 2]), 2) + pow(np.array(vel_field_avg[0][:, :, 3]), 2))
-plt.figure(figsize = (16, 12))
-plt.imshow(np.flip(np.flip(np.rot90(intsum), axis = 1)), cmap = "Greys", aspect = "auto")
-plt.quiver(vel_field_avg[0][:, :, 0], vel_field_avg[0][:, :, 1], vel_field_avg[0][:, :, 2] / mag,vel_field_avg[0][:, :, 3] / mag, mag)
-plt.colorbar()
-plt.xlim(0, intsum.shape[0])
-plt.ylim(0, intsum.shape[1])
-plt.show()
+    # Plot
+    mag = np.sqrt(pow(np.array(vel_field_avg[0][:, :, 2]), 2) + pow(np.array(vel_field_avg[0][:, :, 3]), 2))
+    plt.figure(figsize = (16, 12))
+    plt.imshow(np.flip(np.flip(np.rot90(intsum), axis = 1)), cmap = "Greys", aspect = "auto")
+    plt.quiver(vel_field_avg[0][:, :, 0], vel_field_avg[0][:, :, 1], vel_field_avg[0][:, :, 2] / mag, vel_field_avg[0][:, :, 3] / mag, mag)
+    plt.colorbar()
+    plt.xlim(0, intsum.shape[0])
+    plt.ylim(0, intsum.shape[1])
+    plt.show()
 
 means = []
 stds = []
@@ -290,16 +309,16 @@ plt.show()
 plt.hist(vel_field_avg[0][thrarr, 3].ravel(), bins = 70)
 plt.show()
 
-frames = [49, 49, 5, 5, 10, 10, 15, 15, 20, 20, 25, 25, 40, 40, 30, 30, 35, 35, 150, 150]
-ratio = [5.10 / 0.19, 4.28 / 0.20, 5.24 / 0.64, 4.55 / 0.65, 5.27 / 0.47, 5.25 / 0.46, 4.69 / 0.39, 5.23 / 0.38, 5.47 / 0.33, 4.60 / 0.34, 6.45 / 0.29, 4.09 / 0.31, 5.46 / 0.23, 5.36 / 0.21, 4.63 / 0.27, 4.96 / 0.30, 5.99 / 0.25, 4.69 / 0.22, 0, 0]
+frames_ = [49, 49, 5, 5, 10, 10, 15, 15, 20, 20, 25, 25, 40, 40, 30, 30, 35, 35]
+ratio = [5.10 / 0.19, 4.28 / 0.20, 5.24 / 0.64, 4.55 / 0.65, 5.27 / 0.47, 5.25 / 0.46, 4.69 / 0.39, 5.23 / 0.38, 5.47 / 0.33, 4.60 / 0.34, 6.45 / 0.29, 4.09 / 0.31, 5.46 / 0.23, 5.36 / 0.21, 4.63 / 0.27, 4.96 / 0.30, 5.99 / 0.25, 4.69 / 0.22]
 
-fit = np.polyfit(frames, ratio, 1)
-xs = np.arange(np.min(frames), np.max(frames), 1)
+fit = np.polyfit(frames_, ratio, 1)
+xs = np.arange(np.min(frames_), np.max(frames_), 1)
 print(xs)
 print(fit)
 plt.plot(xs, fit[0] * xs + fit[1])
 
-plt.scatter(frames, ratio)
+plt.scatter(frames_, ratio)
 plt.ylabel("Std Dev: Std Dev Cor Avg")
 plt.xlabel("Frame Pairs")
 plt.show()
