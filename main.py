@@ -135,7 +135,7 @@ def get_correlation_matrices_from_video(_threshold_array = None):
                     br_iw1_x = int(tl_iw1_x + iw1)
                     br_iw1_y = int(tl_iw1_y + iw1)
 
-                    # Get larger interrogation window array
+                    # Get interrogation windows
                     template_to_match = b[tl_iw2_x:br_iw2_x, tl_iw2_y: br_iw2_y]
                     template = a[tl_iw1_x:br_iw1_x, tl_iw1_y:br_iw1_y]
 
@@ -174,14 +174,14 @@ def get_velocity_vector_from_correlation_matrix(_admatrix):
     :return: u,v velocity vector tuple
     """
 
-    admatrix = _admatrix
+    admatrix = -_admatrix + np.max(_admatrix)
     pfmethod = PIV.config("pfmethod")
 
-    peak_position = np.unravel_index(admatrix.argmin(), admatrix.shape)
+    peak_position = np.unravel_index(admatrix.argmax(), admatrix.shape)
 
     if pfmethod == "peak":
-        u = peak_position[0] - admatrix.shape[0] / 2
-        v = peak_position[1] - admatrix.shape[0] / 2
+        u = peak_position[0] - (admatrix.shape[0] - 1) / 2
+        v = peak_position[1] - (admatrix.shape[0] - 1) / 2
     elif pfmethod == "fivepointgaussian":
         if admatrix.shape[0] - 1 > peak_position[0] > 0 and admatrix.shape[1] - 1 > peak_position[1] > 0:
             xc = yc = np.log(admatrix[peak_position[0], peak_position[1]])
@@ -260,16 +260,60 @@ def get_velocity_field_from_correlation_matrix(_correlation_matrices, _threshold
     return velocity_field
 
 
+def resample_correlation_matrices(absolute_differences):
+    """
+
+    :param absolute_differences:
+    :return:
+    """
+    samples = absolute_differences.shape[0]
+    indices = np.random.choice(samples, samples)
+    absolute_differences_resampled = absolute_differences[indices, :, :, :]
+    return absolute_differences_resampled
+
+
 # PIV config
-PIV.set("filename", "./data/animations/animation_constant_width_gradient_98.tif")
-PIV.set("iw1", 8)
-PIV.set("iw2", 32)
-PIV.set("inc", 3)
+PIV.set("filename", "./data/animations/animation_constant.tif")
+PIV.set("iw1", 16)
+PIV.set("iw2", 52)
+PIV.set("inc", 8)
 PIV.set("threshold", 0.215)
-PIV.set("threshold", -1)
+PIV.set("threshold", 0.000)
 PIV.set("pfmethod", "fivepointgaussian")
 
-for i in [16]:
+intsum = get_image_intensity_sum_from_video()
+thrarr = get_threshold_array_from_intensity_array(intsum)
+cormat = get_correlation_matrices_from_video(thrarr)
+avgmat = get_correlation_average_matrix_from_correlation_matrices(cormat)
+vel_field_avg = get_velocity_field_from_correlation_matrix(avgmat, thrarr)
+print(np.mean(np.sqrt(vel_field_avg[0][:, :, 2]**2 + vel_field_avg[0][:, :, 3]**2)))
+print(np.std(np.sqrt(vel_field_avg[0][:, :, 2] ** 2 + vel_field_avg[0][:, :, 3] ** 2), ddof = 1) / (len(vel_field_avg[0][:, :, 3]) ** 0.5))
+plt.hist(np.sqrt(vel_field_avg[0][:, :, 2]**2 + vel_field_avg[0][:, :, 3]**2).ravel(), bins = 150)
+plt.show()
+
+
+mag = np.sqrt(pow(np.array(vel_field_avg[0][:, :, 2]), 2) + pow(np.array(vel_field_avg[0][:, :, 3]), 2))
+plt.figure(figsize = (16, 12))
+plt.imshow(np.flip(np.flip(np.rot90(intsum), axis = 1)), cmap = "Greys", aspect = "auto")
+plt.quiver(vel_field_avg[0][:, :, 0], vel_field_avg[0][:, :, 1], vel_field_avg[0][:, :, 2] / mag,vel_field_avg[0][:, :, 3] / mag, mag)
+plt.colorbar()
+plt.xlim(0, intsum.shape[0])
+plt.ylim(0, intsum.shape[1])
+plt.show()
+
+velsamples = []
+
+for i in range(300):
+    cormat_sample = resample_correlation_matrices(cormat)
+    avgmat = get_correlation_average_matrix_from_correlation_matrices(cormat_sample)
+    vel_field_avg = get_velocity_field_from_correlation_matrix(avgmat, thrarr)
+    velsamples.append(np.sqrt(vel_field_avg[0][:, :, 3]**2 + vel_field_avg[0][:, :, 2]**2))
+print(np.mean(velsamples))
+print(np.std(velsamples, ddof = 1))
+plt.hist(np.array(velsamples).ravel(), bins = 150, align = "mid")
+plt.show()
+
+"""for i in [16]:
     # Do PIV
     PIV.set("iw1", i)
     PIV.set("iw2", 16+i)
@@ -321,4 +365,4 @@ plt.plot(xs, fit[0] * xs + fit[1])
 plt.scatter(frames_, ratio)
 plt.ylabel("Std Dev: Std Dev Cor Avg")
 plt.xlabel("Frame Pairs")
-plt.show()
+plt.show()"""

@@ -11,9 +11,9 @@ random.seed()
 # Animation variables
 animation_width = 320
 animation_height = 320
-animation_frames = 200
-particles = 35
-particle_size = 8
+animation_frames = 48
+particles = 50
+particle_size = 6
 
 
 # Returns a gaussian
@@ -21,10 +21,9 @@ particle_size = 8
 def circular_gaussian(_x, _y, _mean_x, _mean_y, _sdx, _sdy, _theta):
     _xd = (_x - _mean_x)
     _yd = (_y - _mean_y)
-
     _xdr = _xd * np.cos(_theta) - _yd * np.sin(_theta)
     _ydr = _xd * np.sin(_theta) + _yd * np.cos(_theta)
-    return 2**16 * np.exp(-(((_xdr)**2 / (2 * _sdx**2)) + ((_ydr)**2 / (2 * _sdy**2))))
+    return (2**16 - 1) * np.exp(-(((_xdr)**2 / (2 * _sdx**2)) + ((_ydr)**2 / (2 * _sdy**2))))
 
 
 class Particle:
@@ -46,6 +45,9 @@ class Particle:
         self.velocity_x, self.velocity_y = self.function(self.x, self.y, self.xvel, self.yvel, self.xsd, self.ysd)
         self.x += self.velocity_x
         self.y += self.velocity_y
+
+        self.xsd = random.gauss(self.xsd, self.xsd / 10)
+        self.ysd = random.gauss(self.xsd, self.ysd / 10)
 
         if self.x >= animation_width:
             self.x -= animation_width
@@ -71,8 +73,7 @@ def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd):
         _x = random.randint(0, animation_width - 1)
         _y = random.randint(0, animation_height - 1)
 
-        a[i] = Particle(_x, _y, _xvel, _yvel, _xsd, _ysd, _function, 0.25 * random.uniform(0, 1), random.uniform(0, 2 * np.pi))
-        #a[i] = Particle(_x, _y, _xvel, _yvel, _xsd, _ysd, _function, 1)
+        a[i] = Particle(_x, _y, _xvel, _yvel, _xsd, _ysd, _function, 0.15 * random.uniform(0, 1), random.uniform(0, 2 * np.pi))
 
     # Set up video array
     video_array = np.zeros((animation_frames, animation_width, animation_height), dtype=np.int_)
@@ -84,8 +85,8 @@ def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd):
             if t % 2 == 0:
                 a[i].randomise_position()
             a[i].step()
-            for _x in range(max([0, int(a[i].x - particle_size * 4)]), min([animation_width, int(a[i].x + particle_size * 4)])):
-                for _y in range(max([0, int(a[i].y - particle_size * 4)]), min([animation_height, int(a[i].y + particle_size * 4)])):
+            for _x in range(max([0, int(a[i].x - particle_size * 3)]), min([animation_width, int(a[i].x + particle_size * 3)])):
+                for _y in range(max([0, int(a[i].y - particle_size * 3)]), min([animation_height, int(a[i].y + particle_size * 3)])):
                     image_array[_x, _y] += a[i].brightness * circular_gaussian(_x, _y, a[i].x, a[i].y, particle_size, 1.1 * particle_size, a[i].theta)
         # Save current frame to video
         image_array = np.minimum(image_array, np.full(image_array.shape, 2**16 - 1))
@@ -116,4 +117,4 @@ def plot_field(_function, _name, _width, _height, _window, _xvel, _yvel):
 
 
 # Make videos
-make_animation(field_functions.constant_with_gradient, "constant_width_gradient_98", 0, 1, 0, 0)
+make_animation(field_functions.constant, "constant", 0, 8, 0.1, 0.1)
