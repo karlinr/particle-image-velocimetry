@@ -280,10 +280,11 @@ def resample_correlation_matrices(absolute_differences):
 PIV.set("iw1", 16)
 PIV.set("iw2", 48)
 PIV.set("inc", 8)
-PIV.set("threshold", 0.215)
+#PIV.set("threshold", 0.215)
+PIV.set("threshold", 0.0)
 PIV.set("pfmethod", "fivepointgaussian")
 
-for animation in os.listdir("./data/processedzebra/"):
+"""for animation in os.listdir("./data/processedzebra/"):
     # PIV config
     PIV.set("filename", f"./data/processedzebra/{animation}")
 
@@ -304,20 +305,43 @@ for animation in os.listdir("./data/processedzebra/"):
     plt.colorbar()
     plt.xlim(0, intsum.shape[0])
     plt.ylim(0, intsum.shape[1])
-    plt.savefig(f"./data/deczebrafields/{animation}.png")
+    plt.savefig(f"./data/deczebrafields/{animation}.png")"""
 
 # Bootstrap
 magvelsamples = []
+magvel = []
 velsamplesx = []
 velsamplesy = []
 
-for i in range(25000):
+PIV.set("filename", f"./data/processedzebra/0_testdata.tif")
+intsum = get_image_intensity_sum_from_video()
+thrarr = get_threshold_array_from_intensity_array(intsum)
+cormat = get_correlation_matrices_from_video(thrarr)
+avgmat = get_correlation_average_matrix_from_correlation_matrices(cormat)
+vel_field_avg = get_velocity_field_from_correlation_matrix(avgmat, thrarr)
+magvel = np.sqrt(vel_field_avg[0][:, :, 3] ** 2 + vel_field_avg[0][:, :, 2] ** 2)
+print(magvel.shape)
+for i in range(1000):
     cormat_sample = resample_correlation_matrices(cormat)
     avgmat = get_correlation_average_matrix_from_correlation_matrices(cormat_sample)
     vel_field_avg = get_velocity_field_from_correlation_matrix(avgmat, thrarr)
     magvelsamples.append(np.sqrt(vel_field_avg[0][:, :, 3] ** 2 + vel_field_avg[0][:, :, 2] ** 2))
     velsamplesx.append(vel_field_avg[0][:, :, 2])
     velsamplesy.append(vel_field_avg[0][:, :, 3])
+
+magvelmean = np.mean(magvelsamples, axis = 0)
+magvelmean2 = magvel
+velstd = np.std(np.sqrt(np.square(velsamplesx) + np.square(velsamplesy)), axis = 0)
+"""plt.imshow(np.flip(np.flip(np.rot90(np.abs(magvelmean - magvelmean2)))), aspect = "auto", extent = [0, 320, 0, 400])
+plt.colorbar()
+plt.show()"""
+plt.imshow(np.flip(np.flip(np.rot90(velstd))), aspect = "auto", extent = [0, 320, 0, 400])
+plt.colorbar()
+plt.show()
+"""plt.imshow(np.flip(np.flip(np.rot90(velstd / np.abs(magvelmean - magvelmean2)))), aspect = "auto", extent = [0, 320, 0, 400])
+plt.clim(0, 250)
+plt.colorbar()"""
+plt.show()
 
 # Print output
 print(f"magnitude velocity: {np.mean(magvelsamples)}")
