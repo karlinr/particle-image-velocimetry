@@ -9,11 +9,11 @@ import random
 random.seed()
 
 # Animation variables
-animation_width = 320
-animation_height = 320
-animation_frames = 48
-particles = 50
-particle_size = 6
+animation_width = 54
+animation_height = 54
+animation_frames = 800
+particles = 2
+particle_size = 12
 
 
 # Returns a gaussian
@@ -46,21 +46,20 @@ class Particle:
         self.x += self.velocity_x
         self.y += self.velocity_y
 
-        self.xsd = random.gauss(self.xsd, self.xsd / 10)
-        self.ysd = random.gauss(self.xsd, self.ysd / 10)
+        #self.theta += random.gauss(0, (np.pi * 2) / 360)
 
-        if self.x >= animation_width:
+        """if self.x >= animation_width:
             self.x -= animation_width
         elif self.x < 0:
             self.x += animation_width
         if self.y >= animation_height:
             self.y -= animation_height
         elif self.y < 0:
-            self.y += animation_height
+            self.y += animation_height"""
 
     def randomise_position(self):
-        self.x = random.randint(0, animation_width - 1)
-        self.y = random.randint(0, animation_height - 1)
+        self.x = random.randint(-particle_size, animation_width + particle_size)
+        self.y = random.randint(-particle_size, animation_height + particle_size)
 
 
 def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd):
@@ -70,8 +69,8 @@ def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd):
     # Setup particles
     a = np.empty(particles + 1, dtype=object)
     for i in range(particles):
-        _x = random.randint(0, animation_width - 1)
-        _y = random.randint(0, animation_height - 1)
+        _x = random.randint(-particle_size, animation_width + particle_size)
+        _y = random.randint(-particle_size, animation_height + particle_size)
 
         a[i] = Particle(_x, _y, _xvel, _yvel, _xsd, _ysd, _function, 0.15 * random.uniform(0, 1), random.uniform(0, 2 * np.pi))
 
@@ -85,8 +84,12 @@ def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd):
             if t % 2 == 0:
                 a[i].randomise_position()
             a[i].step()
-            for _x in range(max([0, int(a[i].x - particle_size * 3)]), min([animation_width, int(a[i].x + particle_size * 3)])):
-                for _y in range(max([0, int(a[i].y - particle_size * 3)]), min([animation_height, int(a[i].y + particle_size * 3)])):
+            """for _x in range(max([0, int(a[i].x - particle_size * 3)]),
+                            min([animation_width, int(a[i].x + particle_size * 3)])):
+                for _y in range(max([0, int(a[i].y - particle_size * 3)]),
+                                min([animation_height, int(a[i].y + particle_size * 3)])):"""
+            for _x in range(0, animation_width):
+                for _y in range(0, animation_height):
                     image_array[_x, _y] += a[i].brightness * circular_gaussian(_x, _y, a[i].x, a[i].y, particle_size, 1.1 * particle_size, a[i].theta)
         # Save current frame to video
         image_array = np.minimum(image_array, np.full(image_array.shape, 2**16 - 1))
@@ -97,7 +100,7 @@ def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd):
     # noinspection PyTypeChecker
     tf.imwrite(f"data/animations/animation_{_name}.tif", video_array.astype(np.ushort), compression = "zlib")
 
-    plot_field(_function, _name, animation_width, animation_height, 32, _xvel, _yvel)
+    #plot_field(_function, _name, animation_width, animation_height, 32, _xvel, _yvel)
 
     # Measure execution time
     end = time.time()
@@ -117,4 +120,6 @@ def plot_field(_function, _name, _width, _height, _window, _xvel, _yvel):
 
 
 # Make videos
-make_animation(field_functions.constant, "constant", 0, 8, 0.1, 0.1)
+make_animation(field_functions.constant, "constant", 4, 4, 0, 0)
+make_animation(field_functions.constant_with_gradient, "constant_with_gradient", 4, 4, 0, 0)
+make_animation(field_functions.constant, "stationary", 0, 0, 0, 0)

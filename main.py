@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import time
 import scipy.optimize
 import msl_sad_correlation as msc
+import os
 
 
 class PIV:
@@ -70,14 +71,14 @@ def get_threshold_array_from_intensity_array(intensity_array):
     iw2 = PIV.config("iw2")
     inc = PIV.config("inc")
 
-    width = int(np.ceil((intensity_array.shape[0] - iw2) / inc))
-    height = int(np.ceil((intensity_array.shape[1] - iw2) / inc))
-
-    intensity_array = [np.sum(intensity_array[j * inc: (j * inc) + iw2, k * inc: (k * inc) + iw2]) for j in
-                       range(0, width) for k in range(0, height)]
+    width = int(((intensity_array.shape[0] + 1) - iw2) // inc)
+    height = int(((intensity_array.shape[1] + 1) - iw2) // inc)
+    intensity_array = np.array([np.sum(intensity_array[j * inc: (j * inc) + iw2, k * inc: (k * inc) + iw2]) for j in
+                                range(0, width) for k in range(0, height)])
     intensity_array = intensity_array - np.min(intensity_array)
-    threshold_array = np.array([intensity_array / np.max(intensity_array) >= threshold]).reshape((width, height))
-
+    # FIX: normalisation constant is a minimum of 1 when float values could be possible
+    threshold_array = np.array([intensity_array / np.max([np.max(intensity_array), 1]) >= threshold]).reshape(
+        (width, height))
     return threshold_array
 
 
@@ -101,8 +102,8 @@ def get_correlation_matrices_from_video(_threshold_array = None):
     # Import video and get attributes
     video = tf.imread(filename).astype(np.int16)
     frames = int(video.shape[0])
-    width = int(np.ceil((video.shape[1] - iw2) / inc))
-    height = int(np.ceil((video.shape[2] - iw2) / inc))
+    width = int(((video.shape[1] + 1) - iw2) // inc)
+    height = int(((video.shape[2] + 1) - iw2) // inc)
 
     # Get threshold array
     if _threshold_array is None:
@@ -130,8 +131,8 @@ def get_correlation_matrices_from_video(_threshold_array = None):
                     tl_iw2_y = int(k * inc)
                     br_iw2_x = int(tl_iw2_x + iw2)
                     br_iw2_y = int(tl_iw2_y + iw2)
-                    tl_iw1_x = int(np.floor(tl_iw2_x + ((iw2 - iw1) / 2)))
-                    tl_iw1_y = int(np.floor(tl_iw2_y + ((iw2 - iw1) / 2)))
+                    tl_iw1_x = int(tl_iw2_x + ((iw2 - iw1) // 2))
+                    tl_iw1_y = int(tl_iw2_y + ((iw2 - iw1) // 2))
                     br_iw1_x = int(tl_iw1_x + iw1)
                     br_iw1_y = int(tl_iw1_y + iw1)
 
@@ -160,7 +161,7 @@ def get_correlation_average_matrix_from_correlation_matrices(absolute_difference
     width = absolute_differences.shape[1]
     height = absolute_differences.shape[2]
 
-    mean_absolute_differences = np.empty((1, width, height, iw2 - iw1 + 1, iw2 - iw1 + 1), dtype = np.int_)
+    mean_absolute_differences = np.empty((1, width, height, iw2 - iw1 + 1, iw2 - iw1 + 1), dtype = np.float64)
     mean_absolute_differences[0] = np.mean(absolute_differences, axis = 0)
 
     return mean_absolute_differences
@@ -174,6 +175,11 @@ def get_velocity_vector_from_correlation_matrix(_admatrix):
     :return: u,v velocity vector tuple
     """
 
+    # get vars
+    iw1 = PIV.config("iw1")
+    iw2 = PIV.config("iw2")
+    inc = PIV.config("inc")
+
     admatrix = -_admatrix + np.max(_admatrix)
     pfmethod = PIV.config("pfmethod")
 
@@ -181,7 +187,7 @@ def get_velocity_vector_from_correlation_matrix(_admatrix):
 
     if pfmethod == "peak":
         u = peak_position[0] - (admatrix.shape[0] - 1) / 2
-        v = peak_position[1] - (admatrix.shape[0] - 1) / 2
+        v = peak_position[1] - (admatrix.shape[1] - 1) / 2
     elif pfmethod == "fivepointgaussian":
         if admatrix.shape[0] - 1 > peak_position[0] > 0 and admatrix.shape[1] - 1 > peak_position[1] > 0:
             xc = yc = np.log(admatrix[peak_position[0], peak_position[1]])
@@ -190,11 +196,11 @@ def get_velocity_vector_from_correlation_matrix(_admatrix):
             ya = np.log(admatrix[peak_position[0], peak_position[1] - 1])
             yb = np.log(admatrix[peak_position[0], peak_position[1] + 1])
             subpixel = [(xl - xr) / (2 * (xr - 2 * xc + xl)), (ya - yb) / (2 * (yb - 2 * yc + ya))]
-            u = peak_position[0] - (admatrix.shape[0] - 1) / 2 + subpixel[0]
-            v = peak_position[1] - (admatrix.shape[1] - 1) / 2 + subpixel[1]
+            u = -(peak_position[0] - (admatrix.shape[0] - 1) / 2 + subpixel[0])
+            v = -(peak_position[1] - (admatrix.shape[1] - 1) / 2 + subpixel[1])
         else:
-            u = peak_position[0] - (admatrix.shape[0] - 1) / 2
-            v = peak_position[1] - (admatrix.shape[0] - 1) / 2
+            u = -(peak_position[0] - (admatrix.shape[0] - 1) / 2)
+            v = -(peak_position[1] - (admatrix.shape[1] - 1) / 2)
     elif pfmethod == "gaussian":
         # Fit a gaussian
         _x, _y = np.meshgrid(np.arange(admatrix.shape[0]), np.arange(admatrix.shape[1]))
@@ -230,9 +236,7 @@ def get_velocity_vector_from_correlation_matrix(_admatrix):
         u = popt[1] - (admatrix.shape[0] - 1) / 2
         v = popt[2] - (admatrix.shape[1] - 1) / 2
     else:
-        print("Invalid method.")
-        u = 0
-        v = 0
+        raise ValueError("Invalid peak fitting method.")
     return u, v
 
 
@@ -273,44 +277,63 @@ def resample_correlation_matrices(absolute_differences):
 
 
 # PIV config
-PIV.set("filename", "./data/animations/animation_constant.tif")
 PIV.set("iw1", 16)
-PIV.set("iw2", 52)
+PIV.set("iw2", 48)
 PIV.set("inc", 8)
 PIV.set("threshold", 0.215)
-PIV.set("threshold", 0.000)
 PIV.set("pfmethod", "fivepointgaussian")
 
-intsum = get_image_intensity_sum_from_video()
-thrarr = get_threshold_array_from_intensity_array(intsum)
-cormat = get_correlation_matrices_from_video(thrarr)
-avgmat = get_correlation_average_matrix_from_correlation_matrices(cormat)
-vel_field_avg = get_velocity_field_from_correlation_matrix(avgmat, thrarr)
-print(np.mean(np.sqrt(vel_field_avg[0][:, :, 2]**2 + vel_field_avg[0][:, :, 3]**2)))
-print(np.std(np.sqrt(vel_field_avg[0][:, :, 2] ** 2 + vel_field_avg[0][:, :, 3] ** 2), ddof = 1) / (len(vel_field_avg[0][:, :, 3]) ** 0.5))
-plt.hist(np.sqrt(vel_field_avg[0][:, :, 2]**2 + vel_field_avg[0][:, :, 3]**2).ravel(), bins = 150)
-plt.show()
+for animation in os.listdir("./data/processedzebra/"):
+    # PIV config
+    PIV.set("filename", f"./data/processedzebra/{animation}")
 
+    # Do PIV
+    intsum = get_image_intensity_sum_from_video()
+    thrarr = get_threshold_array_from_intensity_array(intsum)
+    cormat = get_correlation_matrices_from_video(thrarr)
+    avgmat = get_correlation_average_matrix_from_correlation_matrices(cormat)
+    vel_field_avg = get_velocity_field_from_correlation_matrix(avgmat, thrarr)
 
-mag = np.sqrt(pow(np.array(vel_field_avg[0][:, :, 2]), 2) + pow(np.array(vel_field_avg[0][:, :, 3]), 2))
-plt.figure(figsize = (16, 12))
-plt.imshow(np.flip(np.flip(np.rot90(intsum), axis = 1)), cmap = "Greys", aspect = "auto")
-plt.quiver(vel_field_avg[0][:, :, 0], vel_field_avg[0][:, :, 1], vel_field_avg[0][:, :, 2] / mag,vel_field_avg[0][:, :, 3] / mag, mag)
-plt.colorbar()
-plt.xlim(0, intsum.shape[0])
-plt.ylim(0, intsum.shape[1])
-plt.show()
+    # Plot PIV
+    mag = np.sqrt(pow(np.array(vel_field_avg[0][:, :, 2]), 2) + pow(np.array(vel_field_avg[0][:, :, 3]), 2))
+    plt.figure(figsize = (16, 12))
+    plt.imshow(np.flip(np.flip(np.rot90(intsum), axis = 1)), cmap = "Greys", aspect = "auto")
+    plt.quiver(vel_field_avg[0][:, :, 0], vel_field_avg[0][:, :, 1], vel_field_avg[0][:, :, 2] / mag,
+               vel_field_avg[0][:, :, 3] / mag, mag)
+    plt.clim(0, 8)
+    plt.colorbar()
+    plt.xlim(0, intsum.shape[0])
+    plt.ylim(0, intsum.shape[1])
+    plt.savefig(f"./data/deczebrafields/{animation}.png")
 
-velsamples = []
+# Bootstrap
+magvelsamples = []
+velsamplesx = []
+velsamplesy = []
 
-for i in range(300):
+for i in range(25000):
     cormat_sample = resample_correlation_matrices(cormat)
     avgmat = get_correlation_average_matrix_from_correlation_matrices(cormat_sample)
     vel_field_avg = get_velocity_field_from_correlation_matrix(avgmat, thrarr)
-    velsamples.append(np.sqrt(vel_field_avg[0][:, :, 3]**2 + vel_field_avg[0][:, :, 2]**2))
-print(np.mean(velsamples))
-print(np.std(velsamples, ddof = 1))
-plt.hist(np.array(velsamples).ravel(), bins = 150, align = "mid")
+    magvelsamples.append(np.sqrt(vel_field_avg[0][:, :, 3] ** 2 + vel_field_avg[0][:, :, 2] ** 2))
+    velsamplesx.append(vel_field_avg[0][:, :, 2])
+    velsamplesy.append(vel_field_avg[0][:, :, 3])
+
+# Print output
+print(f"magnitude velocity: {np.mean(magvelsamples)}")
+print(f"magnitude x velocity: {np.mean(velsamplesx)}")
+print(f"magnitude y velocity: {np.mean(velsamplesy)}")
+print(np.std(magvelsamples, ddof = 1))
+
+# Plot bootstrap
+plt.title("Bootstrapped x velocities")
+plt.hist(np.array(velsamplesx).ravel(), bins = 500, align = "mid")
+plt.show()
+plt.title("Bootstrapped y velocities")
+plt.hist(np.array(velsamplesy).ravel(), bins = 500, align = "mid")
+plt.show()
+plt.title("Bootstrapped speeds")
+plt.hist(np.array(magvelsamples).ravel(), bins = 500, align = "mid")
 plt.show()
 
 """for i in [16]:
