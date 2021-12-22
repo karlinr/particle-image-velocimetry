@@ -71,8 +71,8 @@ def get_threshold_array_from_intensity_array(intensity_array):
     iw2 = PIV.config("iw2")
     inc = PIV.config("inc")
 
-    width = int(((intensity_array.shape[0] + 1) - iw2) // inc)
-    height = int(((intensity_array.shape[1] + 1) - iw2) // inc)
+    width = int(((intensity_array.shape[0] + inc) - iw2) // inc)
+    height = int(((intensity_array.shape[1] + inc) - iw2) // inc)
     intensity_array = np.array([np.sum(intensity_array[j * inc: (j * inc) + iw2, k * inc: (k * inc) + iw2]) for j in
                                 range(0, width) for k in range(0, height)])
     intensity_array = intensity_array - np.min(intensity_array)
@@ -102,8 +102,8 @@ def get_correlation_matrices_from_video(_threshold_array = None):
     # Import video and get attributes
     video = tf.imread(filename).astype(np.int16)
     frames = int(video.shape[0])
-    width = int(((video.shape[1] + 1) - iw2) // inc)
-    height = int(((video.shape[2] + 1) - iw2) // inc)
+    width = int(((video.shape[1] + inc) - iw2) // inc)
+    height = int(((video.shape[2] + inc) - iw2) // inc)
 
     # Get threshold array
     if _threshold_array is None:
@@ -122,7 +122,7 @@ def get_correlation_matrices_from_video(_threshold_array = None):
         b = video[f]
         a = video[f + 1]
 
-        # Find the velocity field using the sum of absolute differences
+        # Get the absolute differences array
         for j in range(0, width):
             for k in range(0, height):
                 if threshold_array[j, k]:
@@ -275,14 +275,22 @@ def resample_correlation_matrices(absolute_differences):
     absolute_differences_resampled = absolute_differences[indices, :, :, :]
     return absolute_differences_resampled
 
-
+start = time.time()
 # PIV config
 PIV.set("iw1", 16)
 PIV.set("iw2", 48)
-PIV.set("inc", 8)
-#PIV.set("threshold", 0.215)
-PIV.set("threshold", 0.0)
+PIV.set("inc", 16)
+PIV.set("threshold", 0)
+#PIV.set("threshold", 0.0)
+PIV.set("filename", f"./data/processedzebra/0_testdata.tif")
 PIV.set("pfmethod", "fivepointgaussian")
+# Do PIV
+intsum = get_image_intensity_sum_from_video()
+thrarr = get_threshold_array_from_intensity_array(intsum)
+cormat = get_correlation_matrices_from_video(thrarr)
+avgmat = get_correlation_average_matrix_from_correlation_matrices(cormat)
+vel_field_avg = get_velocity_field_from_correlation_matrix(avgmat, thrarr)
+end = time.time()
 
 """for animation in os.listdir("./data/processedzebra/"):
     # PIV config
@@ -301,11 +309,12 @@ PIV.set("pfmethod", "fivepointgaussian")
     plt.imshow(np.flip(np.flip(np.rot90(intsum), axis = 1)), cmap = "Greys", aspect = "auto")
     plt.quiver(vel_field_avg[0][:, :, 0], vel_field_avg[0][:, :, 1], vel_field_avg[0][:, :, 2] / mag,
                vel_field_avg[0][:, :, 3] / mag, mag)
-    plt.clim(0, 8)
+    #plt.clim(0, 8)
     plt.colorbar()
     plt.xlim(0, intsum.shape[0])
     plt.ylim(0, intsum.shape[1])
-    plt.savefig(f"./data/deczebrafields/{animation}.png")"""
+    plt.show()
+    #plt.savefig(f"./data/deczebrafields/{animation}.png")"""
 
 # Bootstrap
 magvelsamples = []
@@ -320,34 +329,36 @@ cormat = get_correlation_matrices_from_video(thrarr)
 avgmat = get_correlation_average_matrix_from_correlation_matrices(cormat)
 vel_field_avg = get_velocity_field_from_correlation_matrix(avgmat, thrarr)
 magvel = np.sqrt(vel_field_avg[0][:, :, 3] ** 2 + vel_field_avg[0][:, :, 2] ** 2)
-print(magvel.shape)
-for i in range(1000):
+start = time.time()
+for i in range(10000):
     cormat_sample = resample_correlation_matrices(cormat)
     avgmat = get_correlation_average_matrix_from_correlation_matrices(cormat_sample)
     vel_field_avg = get_velocity_field_from_correlation_matrix(avgmat, thrarr)
     magvelsamples.append(np.sqrt(vel_field_avg[0][:, :, 3] ** 2 + vel_field_avg[0][:, :, 2] ** 2))
     velsamplesx.append(vel_field_avg[0][:, :, 2])
-    velsamplesy.append(vel_field_avg[0][:, :, 3])
+    velsamplesy.append(vel_field_avg[0][10, 10, 3])
+end = time.time()
+print(f"Completed in {(end - start):.2f} seconds", end = "\n\n")
 
 magvelmean = np.mean(magvelsamples, axis = 0)
 magvelmean2 = magvel
-velstd = np.std(np.sqrt(np.square(velsamplesx) + np.square(velsamplesy)), axis = 0)
+#velstd = np.std(np.sqrt(np.square(velsamplesx) + np.square(velsamplesy)), axis = 0)
 """plt.imshow(np.flip(np.flip(np.rot90(np.abs(magvelmean - magvelmean2)))), aspect = "auto", extent = [0, 320, 0, 400])
 plt.colorbar()
 plt.show()"""
-plt.imshow(np.flip(np.flip(np.rot90(velstd))), aspect = "auto", extent = [0, 320, 0, 400])
-plt.colorbar()
-plt.show()
+#plt.imshow(np.flip(np.flip(np.rot90(velstd))), aspect = "auto", extent = [0, 320, 0, 400])
+#plt.colorbar()
+#plt.show()
 """plt.imshow(np.flip(np.flip(np.rot90(velstd / np.abs(magvelmean - magvelmean2)))), aspect = "auto", extent = [0, 320, 0, 400])
 plt.clim(0, 250)
 plt.colorbar()"""
-plt.show()
+#plt.show()
 
 # Print output
 print(f"magnitude velocity: {np.mean(magvelsamples)}")
 print(f"magnitude x velocity: {np.mean(velsamplesx)}")
 print(f"magnitude y velocity: {np.mean(velsamplesy)}")
-print(np.std(magvelsamples, ddof = 1))
+#print(np.std(magvelsamples, ddof = 1))
 
 # Plot bootstrap
 plt.title("Bootstrapped x velocities")
