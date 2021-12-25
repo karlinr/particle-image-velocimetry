@@ -8,7 +8,7 @@ import os
 
 
 class PIV:
-    def __init__(self, _filename, _iw1, _iw2,- _inc, _threshold, _pfmethod):
+    def __init__(self, _filename, _iw1, _iw2, _inc, _threshold, _pfmethod):
         """
 
         :param _filename:
