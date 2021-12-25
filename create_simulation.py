@@ -11,9 +11,9 @@ random.seed()
 # Animation variables
 animation_width = 54
 animation_height = 54
-animation_frames = 800
-particles = 2
-particle_size = 12
+animation_frames = 60
+particles = 1
+particle_size = 6
 
 
 # Returns a gaussian
@@ -23,7 +23,7 @@ def circular_gaussian(_x, _y, _mean_x, _mean_y, _sdx, _sdy, _theta):
     _yd = (_y - _mean_y)
     _xdr = _xd * np.cos(_theta) - _yd * np.sin(_theta)
     _ydr = _xd * np.sin(_theta) + _yd * np.cos(_theta)
-    return (2**16 - 1) * np.exp(-(((_xdr)**2 / (2 * _sdx**2)) + ((_ydr)**2 / (2 * _sdy**2))))
+    return (2**16 - 1) * np.exp(-((_xdr ** 2 / (2 * _sdx ** 2)) + ((_ydr) ** 2 / (2 * _sdy ** 2))))
 
 
 class Particle:
@@ -38,6 +38,7 @@ class Particle:
         self.xsd = _xsd
         self.ysd = _ysd
         self.theta = _theta
+        self.theta = 0
         self.velocity_x, self.velocity_y = self.function(self.x, self.y, self.xvel, self.yvel, self.xsd, self.ysd)
 
     def step(self):
@@ -58,8 +59,8 @@ class Particle:
             self.y += animation_height"""
 
     def randomise_position(self):
-        self.x = random.randint(-particle_size, animation_width + particle_size)
-        self.y = random.randint(-particle_size, animation_height + particle_size)
+        self.x = random.uniform(-particle_size, animation_width + particle_size)
+        self.y = random.uniform(-particle_size, animation_height + particle_size)
 
 
 def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd):
@@ -69,13 +70,16 @@ def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd):
     # Setup particles
     a = np.empty(particles + 1, dtype=object)
     for i in range(particles):
-        _x = random.randint(-particle_size, animation_width + particle_size)
-        _y = random.randint(-particle_size, animation_height + particle_size)
+        _x = random.uniform(-particle_size, animation_width + particle_size)
+        _y = random.uniform(-particle_size, animation_height + particle_size)
 
-        a[i] = Particle(_x, _y, _xvel, _yvel, _xsd, _ysd, _function, 0.15 * random.uniform(0, 1), random.uniform(0, 2 * np.pi))
+        a[i] = Particle(_x, _y, _xvel, _yvel, _xsd, _ysd, _function, 0.15 + 0.15 * random.uniform(0, 1), random.uniform(0, 2 * np.pi))
 
     # Set up video array
     video_array = np.zeros((animation_frames, animation_width, animation_height), dtype=np.int_)
+
+    xs = []
+    vs = []
 
     # Simulate particles
     for t in range(animation_frames):
@@ -83,6 +87,8 @@ def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd):
         for i in range(particles):
             if t % 2 == 0:
                 a[i].randomise_position()
+                xs.append(a[i].x)
+                vs.append(a[i].velocity_x)
             a[i].step()
             """for _x in range(max([0, int(a[i].x - particle_size * 3)]),
                             min([animation_width, int(a[i].x + particle_size * 3)])):
@@ -90,11 +96,16 @@ def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd):
                                 min([animation_height, int(a[i].y + particle_size * 3)])):"""
             for _x in range(0, animation_width):
                 for _y in range(0, animation_height):
-                    image_array[_x, _y] += a[i].brightness * circular_gaussian(_x, _y, a[i].x, a[i].y, particle_size, 1.1 * particle_size, a[i].theta)
+                    image_array[_x, _y] += a[i].brightness * circular_gaussian(_x, _y, a[i].x, a[i].y, particle_size, particle_size, a[i].theta)
         # Save current frame to video
         image_array = np.minimum(image_array, np.full(image_array.shape, 2**16 - 1))
         video_array[t] = image_array
         print(f"Completed {t} of {animation_frames} frames")
+
+    plt.hist(xs)
+    plt.show()
+    plt.hist(vs)
+    plt.show()
 
     # Save to disk
     # noinspection PyTypeChecker
@@ -120,6 +131,6 @@ def plot_field(_function, _name, _width, _height, _window, _xvel, _yvel):
 
 
 # Make videos
-make_animation(field_functions.constant, "constant", 4, 4, 0, 0)
-make_animation(field_functions.constant_with_gradient, "constant_with_gradient", 4, 4, 0, 0)
-make_animation(field_functions.constant, "stationary", 0, 0, 0, 0)
+#make_animation(field_functions.constant, "constant", 6, 0, 0, 0)
+make_animation(field_functions.constant_with_gradient, "constant_with_gradient", 3, 0, 0, 0)
+#make_animation(field_functions.constant, "stationary", 0, 0, 0, 0)

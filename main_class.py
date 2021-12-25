@@ -3,12 +3,12 @@ import tifffile as tf
 import matplotlib.pyplot as plt
 import time
 import scipy.optimize
-import msl_sad_correlation as msc
+# import msl_sad_correlation as msc
 import os
 
 
 class PIV:
-    def __init__(self, _filename, _iw1, _iw2, _inc, _threshold, _pfmethod):
+    def __init__(self, _filename, _iw1, _iw2,- _inc, _threshold, _pfmethod):
         """
 
         :param _filename:
@@ -68,7 +68,6 @@ class PIV:
         print("Getting correlation matrices...", end = " ")
         # Initialise arrays
         self.correlation_matrices = np.empty((self.frames // 2, self.width, self.height, self.iw2 - self.iw1 + 1, self.iw2 - self.iw1 + 1), dtype = np.int_)
-
         # Calculate the correlation matrices for each frame pair
         for f in range(0, self.frames, 2):
             b = self.video[f]
@@ -93,7 +92,10 @@ class PIV:
                         template = a[tl_iw1_x:br_iw1_x, tl_iw1_y:br_iw1_y]
 
                         # Calculate the absolute differences for the interrogation window
-                        self.correlation_matrices[f // 2, j, k, :, :] = msc.sad_correlation(template.astype(int), template_to_match.astype(int))
+                        # TODO: Temp fix until msc.sad_correlation is working - very slow - make faster using array views
+                        # self.correlation_matrices[f // 2, j, k, :, :] = msc.sad_correlation(template.astype(int), template_to_match.astype(int))
+                        abs_diff_map = np.array([np.sum(np.abs(template_to_match[m:m + self.iw1, n:n + self.iw1] - template)) for m in range(0, self.iw2 - self.iw1 + 1) for n in range(0, self.iw2 - self.iw1 + 1)]).reshape([self.iw2 - self.iw1 + 1, self.iw2 - self.iw1 + 1])
+                        self.correlation_matrices[f // 2, j, k, :, :] = abs_diff_map
         print("complete")
 
     def get_correlation_averaged(self):
@@ -169,7 +171,8 @@ class PIV:
 
 # Do PIV
 start = time.time()
-pivtest = PIV("./data/processedzebra/29_testdata.tif", 16, 48, 16, 0.215, "fivepointgaussian")
+#pivtest = PIV("./data/processedzebra/29_testdata.tif", 16, 48, 64, 0.215, "fivepointgaussian")
+pivtest = PIV("./data/animations/animation_constant_with_gradient.tif", 36, 54, 1, 0, "fivepointgaussian")
 end = time.time()
 print(f"Completed in {(end - start):.2f} seconds", end = "\n\n")
 
@@ -187,25 +190,27 @@ plt.ylim(0, pivtest.intensity_array.shape[1])
 plt.show()
 
 # Get bootstrap
-samples = 2500
+samples = 10000
 vels = []
 vels = np.empty((samples, pivtest.width, pivtest.height), dtype = np.float64)
 
 start = time.time()
 for i in range(samples):
     pivtest.get_resampled_correlation_averaged_velocity_field()
-    vels[i, :, :] = pivtest.resampled_correlation_averaged_velocity_field[0][:, :, 3]
+    vels[i, :, :] = pivtest.resampled_correlation_averaged_velocity_field[0][:, :, 2]
 end = time.time()
 print(f"Completed in {(end - start):.2f} seconds", end = "\n\n")
 
 # Plot histograms
 start = time.time()
 fig, ax = plt.subplots(figsize = (20, 20), sharex = True)
+plt.axis('off')
+
 for j in range(0, pivtest.width):
     for k in range(0, pivtest.height):
         if pivtest.threshold_array[j, k]:
-            plt.suptitle(f"{(j, k)}")
             fig.add_subplot(pivtest.height, pivtest.width, k * pivtest.width + j + 1)
             plt.hist(vels[:, j, k].ravel(), bins = 200)
+            plt.axvline(pivtest.correlation_averaged_velocity_field[0][j, k, 2], c = "crimson")
 plt.show()
 print(f"Completed in {(end - start):.2f} seconds", end = "\n\n")
