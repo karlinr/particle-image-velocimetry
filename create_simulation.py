@@ -6,15 +6,6 @@ import field_functions
 import matplotlib.pyplot as plt
 import random
 
-random.seed()
-
-# Animation variables
-animation_width = 54
-animation_height = 54
-animation_frames = 60
-particles = 1
-particle_size = 6
-
 
 # Returns a gaussian
 # https://mathworld.wolfram.com/GaussianFunction.html
@@ -47,17 +38,6 @@ class Particle:
         self.x += self.velocity_x
         self.y += self.velocity_y
 
-        #self.theta += random.gauss(0, (np.pi * 2) / 360)
-
-        """if self.x >= animation_width:
-            self.x -= animation_width
-        elif self.x < 0:
-            self.x += animation_width
-        if self.y >= animation_height:
-            self.y -= animation_height
-        elif self.y < 0:
-            self.y += animation_height"""
-
     def randomise_position(self):
         self.x = random.uniform(-particle_size, animation_width + particle_size)
         self.y = random.uniform(-particle_size, animation_height + particle_size)
@@ -78,17 +58,12 @@ def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd):
     # Set up video array
     video_array = np.zeros((animation_frames, animation_width, animation_height), dtype=np.int_)
 
-    xs = []
-    vs = []
-
     # Simulate particles
     for t in range(animation_frames):
         image_array = np.zeros((animation_width, animation_height), dtype=np.int_)
         for i in range(particles):
             if t % 2 == 0:
                 a[i].randomise_position()
-                xs.append(a[i].x)
-                vs.append(a[i].velocity_x)
             a[i].step()
             """for _x in range(max([0, int(a[i].x - particle_size * 3)]),
                             min([animation_width, int(a[i].x + particle_size * 3)])):
@@ -100,37 +75,26 @@ def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd):
         # Save current frame to video
         image_array = np.minimum(image_array, np.full(image_array.shape, 2**16 - 1))
         video_array[t] = image_array
-        print(f"Completed {t} of {animation_frames} frames")
-
-    plt.hist(xs)
-    plt.show()
-    plt.hist(vs)
-    plt.show()
+        #print(f"Completed {t} of {animation_frames} frames")
 
     # Save to disk
-    # noinspection PyTypeChecker
-    tf.imwrite(f"data/animations/animation_{_name}.tif", video_array.astype(np.ushort), compression = "zlib")
-
-    #plot_field(_function, _name, animation_width, animation_height, 32, _xvel, _yvel)
+    tf.imwrite(f"data/animations/constant_10_100_1000/animation_{_name}.tif", video_array.astype(np.ushort), compression = "zlib")
 
     # Measure execution time
     end = time.time()
     print(f" completed in {end - start:.2f} seconds")
 
 
-def plot_field(_function, _name, _width, _height, _window, _xvel, _yvel):
-    x, y = np.mgrid[int(_window / 2):int(_width):_window, int(_window / 2): int(_height):_window]
-    u, v = _function(x, y, _xvel, _yvel, 0, 0)
-    mag = np.sqrt(pow(u, 2) + pow(v, 2))
-    plt.figure()
-    plt.quiver(x, y, u, v, mag, cmap = "viridis")
-    plt.colorbar()
-    plt.xlim(0, animation_width)
-    plt.ylim(0, animation_height)
-    plt.savefig(f"data/fields/true/{_name}.png")
-
+random.seed()
 
 # Make videos
-#make_animation(field_functions.constant, "constant", 6, 0, 0, 0)
-make_animation(field_functions.constant_with_gradient, "constant_with_gradient", 3, 0, 0, 0)
+for i, frames in enumerate([26, 50, 100, 150, 250, 500]):
+    # Animation variables
+    animation_width = 54
+    animation_height = 54
+    animation_frames = frames
+    particles = 1
+    particle_size = 5
+    make_animation(field_functions.constant, f"{i}constant_gradient{frames}", 5.5, 0, 0, 0)
+#make_animation(field_functions.constant_with_gradient, "constant_with_gradient", 3, 0, 0, 0)
 #make_animation(field_functions.constant, "stationary", 0, 0, 0, 0)
