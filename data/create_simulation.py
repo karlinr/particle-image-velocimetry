@@ -45,8 +45,8 @@ class Particle:
 def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd, num):
     start = time.time()
     print(f"Creating {num} animations of name {_name} with function {_function}...", end = "")
-    if not os.path.exists(f"data/simulated/{_name}/"):
-        os.makedirs(f"data/simulated/{_name}")
+    if not os.path.exists(f"simulated/{_name}/"):
+        os.makedirs(f"simulated/{_name}")
     for v in range(num):
 
         # Setup particles
