@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import scipy.optimize
 import msl_sad_correlation as msc
 import os
+import math
 
 
 class PIV:
@@ -40,11 +41,12 @@ class PIV:
         self.velocity_field = None
         self.correlation_averaged_velocity_field = None
         self.resampled_correlation_averaged_velocity_field = None
+        self.resampled_correlation_matrices_averaged = None
 
         # Run correlation averaged PIV
-        print(f"Running PIV for {self.filename} with IW:{self.iw}, SA:{self.sa}, inc:{self.inc}, threshold:{self.threshold}, pfmethod: {self.pfmethod}")
+        #print(f"Running PIV for {self.filename} with IW:{self.iw}, SA:{self.sa}, inc:{self.inc}, threshold:{self.threshold}, pfmethod: {self.pfmethod}")
         self.run_PIV()
-        print("Complete", end = "\n\n")
+        #print("Complete", end = "\n\n")
 
     def run_PIV(self):
         self.get_image_intensity_sum()
@@ -54,22 +56,22 @@ class PIV:
         self.get_correlation_averaged_velocity_field()
 
     def get_image_intensity_sum(self):
-        print("--Getting image intensity sum...", end = " ")
+        #print("--Getting image intensity sum...", end = " ")
         self.intensity_array = np.sum(self.video[::2], axis = 0)
-        print("complete")
+        #print("complete")
 
     def get_threshold_array(self):
-        print("--Getting threshold array...", end = " ")
+        #print("--Getting threshold array...", end = " ")
         intensity_array = np.array(
             [np.sum(self.intensity_array[j * self.inc: (j * self.inc) + (2 * self.sa + self.iw), k * self.inc: (k * self.inc) + (2 * self.sa + self.iw)]) for j in range(0, self.width) for k
              in range(0, self.height)])
         intensity_array = intensity_array - np.min(intensity_array)
         # FIX: normalisation constant is a minimum of 1 when float values could be possible
         self.threshold_array = np.array([intensity_array / np.max([np.max(intensity_array), 1]) >= self.threshold]).reshape((self.width, self.height))
-        print("complete")
+        #print("complete")
 
     def get_correlation_matrices(self):
-        print("--Getting correlation matrices...", end = " ")
+        #print("--Getting correlation matrices...", end = " ")
         # Initialise arrays
         self.correlation_matrices = np.empty((self.frames // 2, self.width, self.height, 2 * self.sa + 1, 2 * self.sa + 1), dtype = np.int_)
 
@@ -101,13 +103,13 @@ class PIV:
                         self.correlation_matrices[f // 2, j, k, :, :] = msc.sad_correlation(template.astype(int), template_to_match.astype(int))
                         # abs_diff_map = np.array([np.sum(np.abs(template_to_match[m:m + self.iw, n:n + self.iw] - template)) for m in range(0, 2 * self.sa + 1) for n in range(0, 2 * self.sa + 1)]).reshape([2 * self.sa + 1, 2 * self.sa + 1])
                         # self.correlation_matrices[f // 2, j, k, :, :] = abs_diff_map
-        print("complete")
+        #print("complete")
 
     def get_correlation_averaged(self):
-        print("--Getting correlation averaged matrix...", end = " ")
+        #print("--Getting correlation averaged matrix...", end = " ")
         self.correlation_averaged = np.empty((1, *self.correlation_matrices.shape[1:5]), dtype = np.float64)
         self.correlation_averaged[0] = np.mean(self.correlation_matrices, axis = 0)
-        print("complete")
+        #print("complete")
 
     def get_velocity_vector_from_correlation_matrix(self, _correlation_matrix):
         correlation_matrix = -_correlation_matrix + np.max(_correlation_matrix)
@@ -117,15 +119,39 @@ class PIV:
         if self.pfmethod == "peak":
             u = peak_position[0] - (correlation_matrix.shape[0] - 1) / 2
             v = peak_position[1] - (correlation_matrix.shape[1] - 1) / 2
-        elif self.pfmethod == "fivepointgaussian":
+        elif self.pfmethod == "5pointgaussian":
             # TODO: seperate if statement so gaussian interpolation is calculated for each separately.
             if correlation_matrix.shape[0] - 1 > peak_position[0] > 0 and correlation_matrix.shape[1] - 1 > peak_position[1] > 0:
-                xc = yc = np.log(correlation_matrix[peak_position[0], peak_position[1]])
-                xl = np.log(correlation_matrix[peak_position[0] - 1, peak_position[1]])
-                xr = np.log(correlation_matrix[peak_position[0] + 1, peak_position[1]])
-                ya = np.log(correlation_matrix[peak_position[0], peak_position[1] - 1])
-                yb = np.log(correlation_matrix[peak_position[0], peak_position[1] + 1])
+                xc = yc = math.log(correlation_matrix[peak_position[0], peak_position[1]])
+                xl = math.log(correlation_matrix[peak_position[0] - 1, peak_position[1]])
+                xr = math.log(correlation_matrix[peak_position[0] + 1, peak_position[1]])
+                ya = math.log(correlation_matrix[peak_position[0], peak_position[1] - 1])
+                yb = math.log(correlation_matrix[peak_position[0], peak_position[1] + 1])
                 subpixel = [(xl - xr) / (2 * (xr - 2 * xc + xl)), (ya - yb) / (2 * (yb - 2 * yc + ya))]
+                u = -(peak_position[0] - (correlation_matrix.shape[0] - 1) / 2 + subpixel[0])
+                v = -(peak_position[1] - (correlation_matrix.shape[1] - 1) / 2 + subpixel[1])
+            else:
+                u = -(peak_position[0] - (correlation_matrix.shape[0] - 1) / 2)
+                v = -(peak_position[1] - (correlation_matrix.shape[1] - 1) / 2)
+        elif self.pfmethod == "9pointgaussian":
+            # https://link.springer.com/content/pdf/10.1007/s00348-005-0942-3.pdf
+            if correlation_matrix.shape[0] - 1 > peak_position[0] > 0 and correlation_matrix.shape[1] - 1 > peak_position[1] > 0:
+                xy00 = math.log(correlation_matrix[peak_position[0] - 1, peak_position[1] - 1])
+                xy01 = math.log(correlation_matrix[peak_position[0] - 1, peak_position[1]])
+                xy02 = math.log(correlation_matrix[peak_position[0] - 1, peak_position[1] + 1])
+                xy10 = math.log(correlation_matrix[peak_position[0], peak_position[1] - 1])
+                xy11 = math.log(correlation_matrix[peak_position[0], peak_position[1]])
+                xy12 = math.log(correlation_matrix[peak_position[0], peak_position[1] + 1])
+                xy20 = math.log(correlation_matrix[peak_position[0] + 1, peak_position[1] - 1])
+                xy21 = math.log(correlation_matrix[peak_position[0] + 1, peak_position[1]])
+                xy22 = math.log(correlation_matrix[peak_position[0] + 1, peak_position[1] + 1])
+                c10 = (1/6) * (-xy00 - xy01 - xy02 + xy20 + xy21 + xy22)
+                c01 = (1/6) * (-xy00 - xy10 - xy20 + xy02 + xy12 + xy22)
+                c11 = (1/4) * (xy00 - xy02 - xy20 + xy22)
+                c20 = (1/6) * (xy00 + xy01 + xy02 - 2 * (xy10 + xy11 + xy12) + xy20 + xy21 + xy22)
+                c02 = (1/6) * (xy00 + xy10 + xy20 - 2 * (xy01 + xy11 + xy21) + xy02 + xy12 + xy22)
+                # c00 = (1/9) * (xy00 + 2 * xy01 - xy02 + 2 * xy01 + 5 * xy11 + 2 * xy21 - xy02 + 2 * xy12 - xy22)
+                subpixel = [(c11 * c01 - 2 * c10 * c02) / (4 * c20 * c02 - c11**2), (c11 * c10 - 2 * c01 * c20) / (4 * c20 * c02 - c11**2)]
                 u = -(peak_position[0] - (correlation_matrix.shape[0] - 1) / 2 + subpixel[0])
                 v = -(peak_position[1] - (correlation_matrix.shape[1] - 1) / 2 + subpixel[1])
             else:
@@ -163,61 +189,55 @@ class PIV:
         return velocity_field
 
     def get_velocity_field(self):
-        print("--Getting velocity field for all frames...", end = " ")
+        #print("--Getting velocity field for all frames...", end = " ")
         self.velocity_field = self.get_velocity_field_from_correlation_matrices(self.correlation_matrices)
-        print("complete")
+        #print("complete")
 
     def get_correlation_averaged_velocity_field(self):
-        print("--Getting correlation averaged velocity field", end = " ")
+        #print("--Getting correlation averaged velocity field", end = " ")
         self.correlation_averaged_velocity_field = self.get_velocity_field_from_correlation_matrices(self.correlation_averaged)
-        print("complete")
+        #print("complete")
 
     def get_resampled_correlation_averaged_velocity_field(self):
-        # Todo: Vectorise this
-        # Todo: -- random.choice extra dimension for number of samples
-        # Todo: -- return extra dimension in resampled averaged field like with get_velocity_field
-        indices = np.random.choice(self.frames // 2, self.frames // 2)
+        indices = np.random.choice(self.correlation_matrices.shape[0], self.correlation_matrices.shape[0])
         resampled_correlation_matrices = self.correlation_matrices[indices, :, :, :]
-        resampled_correlation_matrices_averaged = np.empty((1, self.width, self.height, 2 * self.sa + 1, 2 * self.sa + 1), dtype = np.float64)
-        resampled_correlation_matrices_averaged[0] = np.mean(resampled_correlation_matrices, axis = 0)
-        self.resampled_correlation_averaged_velocity_field = self.get_velocity_field_from_correlation_matrices(resampled_correlation_matrices_averaged)
+        self.resampled_correlation_matrices_averaged = np.empty((1, self.width, self.height, 2 * self.sa + 1, 2 * self.sa + 1), dtype = np.float64)
+        self.resampled_correlation_matrices_averaged[0] = np.mean(resampled_correlation_matrices, axis = 0)
+        self.resampled_correlation_averaged_velocity_field = self.get_velocity_field_from_correlation_matrices(self.resampled_correlation_matrices_averaged)
 
 
 # Get distribution
-"""v_x = np.empty(1000, dtype = np.float64)
-v_y = np.empty(1000, dtype = np.float64)
+v_x = np.empty(5000, dtype = np.float64)
+v_y = np.empty(5000, dtype = np.float64)
 
-for i, filename in enumerate(os.listdir("./data/animations/gradient")):
+for i, filename in enumerate(os.listdir("./data/animations/constant")):
     # Plot velocity field
-    pivtest = PIV(f"./data/animations/gradient/{filename}", 24, 15, 1, 0, "fivepointgaussian", False)
+    pivtest = PIV(f"./data/animations/constant/{filename}", 24, 15, 1, 0, "9pointgaussian", False)
     v_x[i] = pivtest.correlation_averaged_velocity_field[0][:, :, 2]
     v_y[i] = pivtest.correlation_averaged_velocity_field[0][:, :, 3]
 
-print(np.mean(v_x))
-print(np.mean(v_y))
+print(f"x:{np.mean(v_x)}+/-{np.std(v_x)}")
+print(f"y:{np.mean(v_y)}+/-{np.std(v_y)}")
 
-plt.figure(figsize = (16, 16))
-plt.hist2d(v_x, v_y, 100)
-plt.axvline(5.5)
-plt.axhline(0)
-plt.show()"""
-
+plt.figure(figsize = (6, 6))
+plt.hist2d(v_x, v_y, 50)
+plt.show()
 
 # Bootstrap Test
-for i, filename in enumerate(os.listdir("./data/animations/constant_10_100_1000")):
-    pivtest = PIV(f"./data/animations/constant_10_100_1000/{filename}", 24, 15, 1, 0, "parabolic", False)
+for i, filename in enumerate(os.listdir("./data/animations/constant")):
+    pivtest = PIV(f"./data/animations/constant/{filename}", 24, 15, 1, 0, "9pointgaussian", False)
     X = pivtest.correlation_averaged_velocity_field[0][:, :, 0]
     Y = pivtest.correlation_averaged_velocity_field[0][:, :, 1]
     U = pivtest.correlation_averaged_velocity_field[0][:, :, 2]
     V = pivtest.correlation_averaged_velocity_field[0][:, :, 3]
     M = np.sqrt(U**2 + V**2)
 
-    """plt.imshow(np.flip(np.flip(np.rot90(pivtest.intensity_array), axis = 1)), cmap = "Greys", aspect = "auto")
+    plt.imshow(np.flip(np.flip(np.rot90(pivtest.intensity_array), axis = 1)), cmap = "Greys", aspect = "auto")
     plt.quiver(X, Y, U / M, V / M, M)
     plt.colorbar()
     plt.xlim(0, pivtest.intensity_array.shape[0])
     plt.ylim(0, pivtest.intensity_array.shape[1])
-    plt.show()"""
+    plt.show()
 
     samples = 10000
     vels = []
@@ -228,6 +248,14 @@ for i, filename in enumerate(os.listdir("./data/animations/constant_10_100_1000"
         pivtest.get_resampled_correlation_averaged_velocity_field()
         v_x[i] = pivtest.resampled_correlation_averaged_velocity_field[0][:, :, 2]
         v_y[i] = pivtest.resampled_correlation_averaged_velocity_field[0][:, :, 3]
+        """plt.figure()
+        plt.imshow(-pivtest.resampled_correlation_matrices_averaged[0, 0, 0, :, :])
+        if(v_y[i] < 3.5):
+            plt.savefig(f"./data/animations/cor_mat/lt/{i}.png")
+        else:
+            plt.savefig(f"./data/animations/cor_mat/gt/{i}.png")
+        plt.close()"""
+
 
     """plt.figure(figsize = (6, 6))
     plt.title(f"{filename}")
@@ -242,19 +270,22 @@ for i, filename in enumerate(os.listdir("./data/animations/constant_10_100_1000"
     plt.title(f"correlation matrix for {filename}")
     plt.show()"""
 
+    print(f"x:{np.mean(v_x)}+/-{np.std(v_x)}")
+    print(f"y:{np.mean(v_y)}+/-{np.std(v_y)}")
+
     plt.figure(figsize = (6, 6))
     plt.title(f"bootstrap for {filename}")
-    plt.axvline(5.5, c = "white")
-    plt.axhline(0, c = "white")
-    plt.axvline(U[0], c = "red")
-    plt.axhline(V[0], c = "red")
+    #plt.axvline(5.5, c = "white")
+    #plt.axhline(0, c = "white")
+    #plt.axvline(U[0], c = "red")
+    #plt.axhline(V[0], c = "red")
     plt.hist2d(v_x, v_y, 50)
     plt.show()
 
 # Process zebrafish
 """for filename in os.listdir("./data/processedzebra/"):
     # Plot velocity field
-    pivtest = PIV(f"./data/processedzebra/{filename}", 24, 15, 10, 0.26, "fivepointgaussian", True)
+    pivtest = PIV(f"./data/processedzebra/{filename}", 24, 15, 24, 0.26, "5pointgaussian", True)
     X = pivtest.correlation_averaged_velocity_field[0][:, :, 0]
     Y = pivtest.correlation_averaged_velocity_field[0][:, :, 1]
     U = pivtest.correlation_averaged_velocity_field[0][:, :, 2]
@@ -267,23 +298,21 @@ for i, filename in enumerate(os.listdir("./data/animations/constant_10_100_1000"
     plt.colorbar()
     plt.xlim(0, pivtest.intensity_array.shape[0])
     plt.ylim(0, pivtest.intensity_array.shape[1])
-    #plt.savefig(f"./data/zebrafield/{filename}.png")
+    plt.savefig(f"./data/zebrafieldjan2022/5pt/{filename}.png")
     plt.show()
 
 # Get bootstrap
+pivtest = PIV(f"./data/processedzebra/0_testdata.tif", 24, 15, 24, 0.26, "9pointgaussian", True)
+
 samples = 5000
 vels = []
 vels = np.empty((samples, pivtest.width, pivtest.height), dtype = np.float64)
 
-start = time.time()
 for i in range(samples):
     pivtest.get_resampled_correlation_averaged_velocity_field()
     vels[i, :, :] = pivtest.resampled_correlation_averaged_velocity_field[0][:, :, 2]
-end = time.time()
-print(f"Completed in {(end - start):.2f} seconds", end = "\n\n")
 
 # Plot histograms
-start = time.time()
 fig, ax = plt.subplots(figsize = (20, 20), sharex = True)
 plt.axis('off')
 
@@ -291,10 +320,10 @@ for j in range(0, pivtest.width):
     for k in range(0, pivtest.height):
         if pivtest.threshold_array[j, k]:
             plt.title(f"{j}, {k}")
-            #fig.add_subplot(pivtest.height, pivtest.width, k * pivtest.width + j + 1)
-            #plt.axvline(0, c = "black")
-            #plt.hist(vels[:, j, k].ravel(), bins = 200)
-            #plt.axvline(pivtest.correlation_averaged_velocity_field[0][j, k, 2], c = "crimson")
-plt.show()
-print(f"Completed in {(end - start):.2f} seconds", end = "\n\n")
-"""
+            fig.add_subplot(pivtest.height, pivtest.width, k * pivtest.width + j + 1)
+            plt.axvline(0, c = "black")
+            plt.hist(vels[:, j, k].ravel(), bins = 200)
+            plt.axvline(pivtest.correlation_averaged_velocity_field[0][j, k, 2], c = "crimson")
+plt.show()"""
+
+

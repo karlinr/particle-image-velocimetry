@@ -5,6 +5,7 @@ import time
 import field_functions
 import matplotlib.pyplot as plt
 import random
+import math
 
 
 # Returns a gaussian
@@ -45,7 +46,7 @@ class Particle:
 
 def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd):
     start = time.time()
-    print(f"Creating animation of type {_name}...")
+    print(f"Creating animation of type {_name}...", end = "")
 
     # Setup particles
     a = np.empty(particles + 1, dtype=object)
@@ -57,6 +58,7 @@ def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd):
 
     # Set up video array
     video_array = np.zeros((animation_frames, animation_width, animation_height), dtype=np.int_)
+    xx, yy = np.meshgrid(range(animation_width), range(animation_height))
 
     # Simulate particles
     for t in range(animation_frames):
@@ -65,20 +67,13 @@ def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd):
             if t % 2 == 0:
                 a[i].randomise_position()
             a[i].step()
-            """for _x in range(max([0, int(a[i].x - particle_size * 3)]),
-                            min([animation_width, int(a[i].x + particle_size * 3)])):
-                for _y in range(max([0, int(a[i].y - particle_size * 3)]),
-                                min([animation_height, int(a[i].y + particle_size * 3)])):"""
-            for _x in range(0, animation_width):
-                for _y in range(0, animation_height):
-                    image_array[_x, _y] += a[i].brightness * circular_gaussian(_x, _y, a[i].x, a[i].y, particle_size, particle_size, a[i].theta)
+            image_array = np.add(image_array, a[i].brightness * circular_gaussian(xx, yy, a[i].x, a[i].y, particle_size, particle_size, a[i].theta))
         # Save current frame to video
         image_array = np.minimum(image_array, np.full(image_array.shape, 2**16 - 1))
         video_array[t] = image_array
-        #print(f"Completed {t} of {animation_frames} frames")
 
     # Save to disk
-    tf.imwrite(f"data/animations/constant_10_100_1000/animation_{_name}.tif", video_array.astype(np.ushort), compression = "zlib")
+    tf.imwrite(f"data/animations/constant/animation_{_name}.tif", video_array.astype(np.ushort), compression = "zlib")
 
     # Measure execution time
     end = time.time()
@@ -88,13 +83,20 @@ def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd):
 random.seed()
 
 # Make videos
-for i, frames in enumerate([26, 50, 100, 150, 250, 500]):
+"""for i, frames in enumerate([26, 50, 76, 100, 126, 150, 250, 500]):
     # Animation variables
     animation_width = 54
     animation_height = 54
     animation_frames = frames
     particles = 1
     particle_size = 5
-    make_animation(field_functions.constant, f"{i}constant_gradient{frames}", 5.5, 0, 0, 0)
-#make_animation(field_functions.constant_with_gradient, "constant_with_gradient", 3, 0, 0, 0)
+    make_animation(field_functions.constant, f"{i}constant{frames}", 5.5, 0, 0, 0)"""
+for i in range(1600):
+    # Animation variables
+    animation_width = 54
+    animation_height = 54
+    animation_frames = 60
+    particles = 1
+    particle_size = 5
+    make_animation(field_functions.constant, f"constant{i}", 3.5, 0, 0.1, 0.1)
 #make_animation(field_functions.constant, "stationary", 0, 0, 0, 0)
