@@ -1,9 +1,7 @@
 import numpy as np
 import tifffile as tf
-import matplotlib.pyplot as plt
 import scipy.optimize
 import msl_sad_correlation as msc
-import os
 import math
 
 
@@ -26,7 +24,7 @@ class PIV:
         self.inc = _inc
         self.threshold = _threshold
         self.pfmethod = _pfmethod
-        self.video = tf.imread(self.filename).astype(np.int16)
+        self.video = tf.imread(self.filename).astype(np.ushort)
         if _pad:
             self.video = np.pad(self.video, [(0, 0), (int(self.sa + 0.5 * self.iw), int(self.sa + 0.5 * self.iw)), (int(self.sa + 0.5 * self.iw), int(self.sa + 0.5 * self.iw))], mode = "minimum")
         self.frames = int(self.video.shape[0])
@@ -100,7 +98,7 @@ class PIV:
                         template = a[tl_iw1_x:br_iw1_x, tl_iw1_y:br_iw1_y]
 
                         # Calculate the absolute differences for the interrogation window
-                        self.correlation_matrices[f // 2, j, k, :, :] = msc.sad_correlation(template.astype(int), template_to_match.astype(int))
+                        self.correlation_matrices[f // 2, j, k, :, :] = msc.sad_correlation(template.astype(np.ushort), template_to_match.astype(np.ushort))
                         # abs_diff_map = np.array([np.sum(np.abs(template_to_match[m:m + self.iw, n:n + self.iw] - template)) for m in range(0, 2 * self.sa + 1) for n in range(0, 2 * self.sa + 1)]).reshape([2 * self.sa + 1, 2 * self.sa + 1])
                         # self.correlation_matrices[f // 2, j, k, :, :] = abs_diff_map
         #print("complete")
@@ -204,126 +202,3 @@ class PIV:
         self.resampled_correlation_matrices_averaged = np.empty((1, self.width, self.height, 2 * self.sa + 1, 2 * self.sa + 1), dtype = np.float64)
         self.resampled_correlation_matrices_averaged[0] = np.mean(resampled_correlation_matrices, axis = 0)
         self.resampled_correlation_averaged_velocity_field = self.get_velocity_field_from_correlation_matrices(self.resampled_correlation_matrices_averaged)
-
-
-# Get distribution
-v_x = np.empty(5000, dtype = np.float64)
-v_y = np.empty(5000, dtype = np.float64)
-
-for i, filename in enumerate(os.listdir("./data/animations/constant")):
-    # Plot velocity field
-    pivtest = PIV(f"./data/animations/constant/{filename}", 24, 15, 1, 0, "9pointgaussian", False)
-    v_x[i] = pivtest.correlation_averaged_velocity_field[0][:, :, 2]
-    v_y[i] = pivtest.correlation_averaged_velocity_field[0][:, :, 3]
-
-print(f"x:{np.mean(v_x)}+/-{np.std(v_x)}")
-print(f"y:{np.mean(v_y)}+/-{np.std(v_y)}")
-
-plt.figure(figsize = (6, 6))
-plt.hist2d(v_x, v_y, 50)
-plt.show()
-
-# Bootstrap Test
-for i, filename in enumerate(os.listdir("./data/animations/constant")):
-    pivtest = PIV(f"./data/animations/constant/{filename}", 24, 15, 1, 0, "9pointgaussian", False)
-    X = pivtest.correlation_averaged_velocity_field[0][:, :, 0]
-    Y = pivtest.correlation_averaged_velocity_field[0][:, :, 1]
-    U = pivtest.correlation_averaged_velocity_field[0][:, :, 2]
-    V = pivtest.correlation_averaged_velocity_field[0][:, :, 3]
-    M = np.sqrt(U**2 + V**2)
-
-    plt.imshow(np.flip(np.flip(np.rot90(pivtest.intensity_array), axis = 1)), cmap = "Greys", aspect = "auto")
-    plt.quiver(X, Y, U / M, V / M, M)
-    plt.colorbar()
-    plt.xlim(0, pivtest.intensity_array.shape[0])
-    plt.ylim(0, pivtest.intensity_array.shape[1])
-    plt.show()
-
-    samples = 10000
-    vels = []
-    v_x = np.empty(samples, dtype = np.float64)
-    v_y = np.empty(samples, dtype = np.float64)
-
-    for i in range(samples):
-        pivtest.get_resampled_correlation_averaged_velocity_field()
-        v_x[i] = pivtest.resampled_correlation_averaged_velocity_field[0][:, :, 2]
-        v_y[i] = pivtest.resampled_correlation_averaged_velocity_field[0][:, :, 3]
-        """plt.figure()
-        plt.imshow(-pivtest.resampled_correlation_matrices_averaged[0, 0, 0, :, :])
-        if(v_y[i] < 3.5):
-            plt.savefig(f"./data/animations/cor_mat/lt/{i}.png")
-        else:
-            plt.savefig(f"./data/animations/cor_mat/gt/{i}.png")
-        plt.close()"""
-
-
-    """plt.figure(figsize = (6, 6))
-    plt.title(f"{filename}")
-    plt.scatter(v_x, v_y, s = 1, alpha = 0.5)
-    plt.plot(U[0], V[0], marker="x", markersize=12, color="red")
-    plt.axvline(5.5, c = "red")
-    plt.axhline(0, c = "red")
-    # plt.plot([-3, 3], [0, 0], marker = "x", markersize = 6, color = "green", ls = "None")
-    plt.show()"""
-
-    """plt.imshow(pivtest.correlation_averaged[0][0, 0, :, :])
-    plt.title(f"correlation matrix for {filename}")
-    plt.show()"""
-
-    print(f"x:{np.mean(v_x)}+/-{np.std(v_x)}")
-    print(f"y:{np.mean(v_y)}+/-{np.std(v_y)}")
-
-    plt.figure(figsize = (6, 6))
-    plt.title(f"bootstrap for {filename}")
-    #plt.axvline(5.5, c = "white")
-    #plt.axhline(0, c = "white")
-    #plt.axvline(U[0], c = "red")
-    #plt.axhline(V[0], c = "red")
-    plt.hist2d(v_x, v_y, 50)
-    plt.show()
-
-# Process zebrafish
-"""for filename in os.listdir("./data/processedzebra/"):
-    # Plot velocity field
-    pivtest = PIV(f"./data/processedzebra/{filename}", 24, 15, 24, 0.26, "5pointgaussian", True)
-    X = pivtest.correlation_averaged_velocity_field[0][:, :, 0]
-    Y = pivtest.correlation_averaged_velocity_field[0][:, :, 1]
-    U = pivtest.correlation_averaged_velocity_field[0][:, :, 2]
-    V = pivtest.correlation_averaged_velocity_field[0][:, :, 3]
-    mag = np.sqrt(U**2 + V**2)
-    plt.figure(figsize = (16, 12))
-    plt.imshow(np.flip(np.flip(np.rot90(pivtest.intensity_array), axis = 1)), cmap = "Greys", aspect = "auto")
-    plt.quiver(X, Y, U /  mag, V / mag, mag)
-    plt.clim(0, 10)
-    plt.colorbar()
-    plt.xlim(0, pivtest.intensity_array.shape[0])
-    plt.ylim(0, pivtest.intensity_array.shape[1])
-    plt.savefig(f"./data/zebrafieldjan2022/5pt/{filename}.png")
-    plt.show()
-
-# Get bootstrap
-pivtest = PIV(f"./data/processedzebra/0_testdata.tif", 24, 15, 24, 0.26, "9pointgaussian", True)
-
-samples = 5000
-vels = []
-vels = np.empty((samples, pivtest.width, pivtest.height), dtype = np.float64)
-
-for i in range(samples):
-    pivtest.get_resampled_correlation_averaged_velocity_field()
-    vels[i, :, :] = pivtest.resampled_correlation_averaged_velocity_field[0][:, :, 2]
-
-# Plot histograms
-fig, ax = plt.subplots(figsize = (20, 20), sharex = True)
-plt.axis('off')
-
-for j in range(0, pivtest.width):
-    for k in range(0, pivtest.height):
-        if pivtest.threshold_array[j, k]:
-            plt.title(f"{j}, {k}")
-            fig.add_subplot(pivtest.height, pivtest.width, k * pivtest.width + j + 1)
-            plt.axvline(0, c = "black")
-            plt.hist(vels[:, j, k].ravel(), bins = 200)
-            plt.axvline(pivtest.correlation_averaged_velocity_field[0][j, k, 2], c = "crimson")
-plt.show()"""
-
-
