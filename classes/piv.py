@@ -1,9 +1,9 @@
 import numpy as np
 import tifffile as tf
-import scipy.optimize
+from scipy.optimize import curve_fit
 import msl_sad_correlation as msc
 import math
-
+import matplotlib.pyplot as plt
 
 class PIV:
     def __init__(self, _filename, _iw, _sa, _inc, _threshold, _pfmethod, _pad = False):
@@ -167,10 +167,13 @@ class PIV:
         elif self.pfmethod == "gaussian":
             # Todo: write gaussian fitting routine
             def gaussian2D(_xy, _a, _x0, _y0, _sigma_x, _sigma_y, _bg):
-                (_x, _y) = _xy
                 return (_bg + _a * np.exp(-(((_x - _x0) ** 2 / (2 * _sigma_x ** 2)) + ((_y - _y0) ** 2 / (2 * _sigma_y ** 2))))).ravel()
-
-            return 0
+            (_x, _y) = np.meshgrid(range(correlation_matrix.shape[0]), range(correlation_matrix.shape[1]))
+            popt, pcov = curve_fit(gaussian2D, (_x, _y), correlation_matrix.flatten(order = "F"), maxfev = 100000)
+            u = -(popt[1] - (correlation_matrix.shape[0] - 1) / 2)
+            v = -(popt[2] - (correlation_matrix.shape[1] - 1) / 2)
+            #print(f"{np.sqrt(pcov[1, 1]):.3f}")
+            #print(f"{np.sqrt(pcov[2, 2]):.3f}")
         else:
             raise ValueError("Invalid peak fitting method.")
         return u, v

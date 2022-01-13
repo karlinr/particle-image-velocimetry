@@ -6,7 +6,7 @@ import os
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["mathtext.fontset"] = "dejavuserif"
 
-folders = ["constant_vx0-0_vxsd0-0_vy3-0_vysd0-0_f500", "constant_vx3-0_vxsd0-0_vy0-0_vysd0-0_f500", "constant_vx3-0_vxsd0-0_vy3-0_vysd0-0_f500", "constant_vx3-5_vxsd0-0_vy3-5_vysd0-0_f500", "constant_vx3-25_vxsd0-0_vy3-25_vysd0-0_f500", "constant_vx3-25_vxsd1-0_vy3-25_vysd1-0_f500"]
+folders = ["gradient_vx3-25_vxsd1-0_vy0-0_vysd0-0_f500", "constant_vx0-0_vxsd0-0_vy3-0_vysd0-0_f500", "constant_vx3-0_vxsd0-0_vy0-0_vysd0-0_f500", "constant_vx3-0_vxsd0-0_vy3-0_vysd0-0_f500", "constant_vx3-5_vxsd0-0_vy3-5_vysd0-0_f500", "constant_vx3-25_vxsd0-0_vy3-25_vysd0-0_f500", "constant_vx3-25_vxsd1-0_vy3-25_vysd1-0_f500"]
 samples = 500
 
 for folder in folders:
@@ -17,6 +17,7 @@ for folder in folders:
 
     # Get true distribution and bootstrapped distribution and save to arrays
     for filename in os.listdir(f"../data/simulated/{folder}"):
+        print(filename)
         piv = PIV(f"../data/simulated/{folder}/{filename}", 24, 15, 1, 0, "9pointgaussian", False)
         v_x.append(piv.correlation_averaged_velocity_field[0][0, 0, 2])
         v_y.append(piv.correlation_averaged_velocity_field[0][0, 0, 3])
@@ -29,6 +30,12 @@ for folder in folders:
             piv.get_resampled_correlation_averaged_velocity_field()
             v_x_bs.append(piv.resampled_correlation_averaged_velocity_field[0][0, 0, 2])
             v_y_bs.append(piv.resampled_correlation_averaged_velocity_field[0][0, 0, 3])
+
+        if not os.path.exists(f"./visualisations/bootstrap_simulated_distributions/{folder}"):
+            os.makedirs(f"./visualisations/bootstrap_simulated_distributions/{folder}")
+        plt.hist2d(v_x_bs, v_y_bs, bins = 100)
+        plt.savefig(f"./visualisations/bootstrap_simulated_distributions/{folder}/{filename}.png")
+        plt.close()
 
         v_x_sd_bs.append(np.std(v_x_bs))
         v_y_sd_bs.append(np.std(v_y_bs))
@@ -57,3 +64,7 @@ for folder in folders:
     plt.tight_layout()
     plt.savefig(f"./visualisations/bootstrap_simulated/{folder}")
     plt.show()
+
+    plt.hist2d(v_x, v_y, bins = 100)
+    plt.savefig(f"./visualisations/bootstrap_simulated_distributions/{folder}/00true.png")
+    plt.close()
