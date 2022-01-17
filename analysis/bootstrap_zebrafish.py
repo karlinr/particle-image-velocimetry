@@ -5,7 +5,7 @@ import os
 
 # Get bootstrap
 for filename in os.listdir("../data/zebrafish/processed"):
-    pivtest = PIV(f"../data/zebrafish/processed/{filename}", 24, 15, 24, 0.26, "9pointgaussian", True)
+    pivtest = PIV(f"../data/zebrafish/processed/{filename}", 24, 24, 24, 0.33, "9pointgaussian", True)
 
     samples = 5000
     vels_x = np.empty((samples, pivtest.width, pivtest.height), dtype = np.float64)
@@ -25,9 +25,12 @@ for filename in os.listdir("../data/zebrafish/processed"):
             if pivtest.threshold_array[j, k]:
                 plt.title(f"{j}, {k}")
                 fig.add_subplot(pivtest.height, pivtest.width, k * pivtest.width + j + 1)
+                plt.xlabel(f"{np.std(vels_x[:, j, k].ravel()):.2f}")
+                plt.ylabel(f"{np.std(vels_y[:, j, k].ravel()):.2f}")
                 #plt.axvline(0, c = "black")
                 plt.hist2d(vels_x[:, j, k].ravel(), vels_y[:, j, k].ravel(), bins = 100)
                 #plt.axvline(pivtest.correlation_averaged_velocity_field[0][j, k, 2], c = "crimson")
     plt.tight_layout()
-    plt.savefig(f"visualisations/bootstrap_zebrafish/{filename}.png")
+    plt.savefig(f"visualisations/bootstrap_zebrafish_9pt/{filename}.png")
     plt.show()
+    plt.close()

@@ -6,7 +6,7 @@ import os
 # Process zebrafish
 for filename in os.listdir("../data/zebrafish/processed"):
     # Plot velocity field
-    zebrafish = PIV(f"../data/zebrafish/processed/{filename}", 24, 15, 24, 0.26, "9pointgaussian", True)
+    zebrafish = PIV(f"../data/zebrafish/processed/{filename}", 24, 24, 24, 0.33, "9pointgaussian", True)
     X = zebrafish.correlation_averaged_velocity_field[0][:, :, 0]
     Y = zebrafish.correlation_averaged_velocity_field[0][:, :, 1]
     U = zebrafish.correlation_averaged_velocity_field[0][:, :, 2]
