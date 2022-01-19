@@ -86,12 +86,16 @@ random.seed()
 # Note : 76 is lowest frame count for zebrafish, 194 is max
 
 # Make videos
+animation_width = 80
+animation_height = 80
+animation_frames = 60
+particles = 1
+particle_size = 7
+make_animation(field_functions.constant, "iw_investigation", 3.1, 3.1, 1, 1, 500)
 animation_width = 54
 animation_height = 54
 animation_frames = 90
-particles = 1
-particle_size = 7
-make_animation(field_functions.constant, "constant_vx3-0_vxsd1-0_vy3-0_vysd1-0_f2000", 3.0, 3.0, 1, 1, 2000)
+#make_animation(field_functions.constant, "constant_vx3-0_vxsd1-0_vy3-0_vysd1-0_f2000", 3.0, 3.0, 1, 1, 2000)
 #make_animation(field_functions.constant, "constant_vx3-5_vxsd1-0_vy3-5_vysd1-0_f1", 3.5, 3.5, 1, 1, 1)
 #make_animation(field_functions.constant, "constant_vx3-0_vxsd1-0_vy3-0_vysd1-0_f1", 3.0, 3.0, 1, 1, 1)
 #make_animation(field_functions.constant, "constant_vx3-5_vxsd0-0_vy0-0_vysd0-0_f1", 3.5, 0, 0, 0, 1)

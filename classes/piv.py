@@ -8,14 +8,14 @@ import math
 class PIV:
     def __init__(self, _filename, _iw, _sa, _inc, _threshold, _pfmethod, _pad = False):
         """
-
-        :param _filename:
-        :param _iw:
-        :param _sa:
-        :param _inc:
-        :param _threshold:
-        :param _pfmethod:
-        :param _pad:
+        Creates a particle image velocimetry object.
+        :param _filename (string): A tif video
+        :param _iw (int): Inner interrogation window
+        :param _sa (int): Search area for larger interrogation window
+        :param _inc (int): Increment for velocity field
+        :param _threshold (float): Minimum particle threshold
+        :param _pfmethod (string): peak-finding method: "peak", "5pointgaussian", "9pointgaussian", "sinc", "gaussian"
+        :param _pad (bool): Whether to pad the input tif video
         """
         # Get config variables
         self.filename = _filename
@@ -49,8 +49,8 @@ class PIV:
 
     def run_PIV(self):
         """
-
-        :return:
+        Runs PIV
+        :return: None
         """
         self.get_image_intensity_sum()
         self.get_threshold_array()
@@ -61,7 +61,7 @@ class PIV:
     def get_image_intensity_sum(self):
         """
 
-        :return:
+        :return: None
         """
         # print("--Getting image intensity sum...", end = " ")
         self.intensity_array = np.sum(self.video[::2], axis = 0)
@@ -70,7 +70,7 @@ class PIV:
     def get_threshold_array(self):
         """
 
-        :return:
+        :return: None
         """
         # print("--Getting threshold array...", end = " ")
         intensity_array = np.array(
@@ -85,7 +85,7 @@ class PIV:
     def get_correlation_matrices(self):
         """
 
-        :return:
+        :return: None
         """
         # print("--Getting correlation matrices...", end = " ")
         # Initialise arrays
@@ -124,7 +124,7 @@ class PIV:
     def get_correlation_averaged(self):
         """
 
-        :return:
+        :return: None
         """
         # print("--Getting correlation averaged matrix...", end = " ")
         self.correlation_averaged = np.empty((1, *self.correlation_matrices.shape[1:5]), dtype = np.float64)
@@ -134,8 +134,8 @@ class PIV:
     def get_velocity_vector_from_correlation_matrix(self, _correlation_matrix, _pfmethod = None):
         """
 
-        :param _correlation_matrix:
-        :param _pfmethod:
+        :param _correlation_matrix (np.array):
+        :param _pfmethod (string): peak-finding method: "peak", "5pointgaussian", "9pointgaussian", "sinc", "gaussian"
         :return:
         """
         correlation_matrix = -_correlation_matrix + np.max(_correlation_matrix)
@@ -236,8 +236,8 @@ class PIV:
     def get_velocity_field_from_correlation_matrices(self, correlation_matrix):
         """
 
-        :param correlation_matrix:
-        :return:
+        :param correlation_matrix (np.array): Array of correlation matrices
+        :return: velocity_field
         """
         velocity_field = np.zeros((self.frames, self.width, self.height, 4))
         for f in range(0, correlation_matrix.shape[0]):

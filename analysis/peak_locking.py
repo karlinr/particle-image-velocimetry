@@ -7,7 +7,7 @@ plt.rcParams["font.family"] = "serif"
 plt.rcParams["mathtext.fontset"] = "dejavuserif"
 
 folders = ["constant_vx3-0_vxsd1-0_vy3-0_vysd1-0_f1", "constant_vx3-5_vxsd1-0_vy3-5_vysd1-0_f1", "constant_vx0-0_vxsd0-0_vy3-5_vysd0-0_f1", "constant_vx3-5_vxsd0-0_vy0-0_vysd0-0_f1", "constant_vx3-5_vxsd0-0_vy3-5_vysd0-0_f1"]
-samples = 5000
+samples = 500
 
 for folder in folders:
     v_x = []
@@ -18,7 +18,7 @@ for folder in folders:
     # Get true distribution and bootstrapped distribution and save to arrays
     for filename in os.listdir(f"../data/simulated/{folder}"):
         print(filename)
-        piv = PIV(f"../data/simulated/{folder}/{filename}", 24, 15, 1, 0, "sinc", False)
+        piv = PIV(f"../data/simulated/{folder}/{filename}", 24, 15, 1, 0, "9pointgaussian", False)
 
 
         # Get standard errors for bootstrap
@@ -32,12 +32,12 @@ for folder in folders:
 
         plt.title(f"{folder}")
         plt.imshow(piv.resampled_correlation_matrices_averaged[0][0,0,:,:])
-        plt.savefig(f"./visualisations/bootstrap_peak_locking/{folder}/{filename}_sinc_corr.png")
+        #plt.savefig(f"./visualisations/bootstrap_peak_locking/{folder}/{filename}_sinc_corr.png")
         plt.show()
 
         plt.title(f"{folder}")
         plt.hist2d(v_x, v_y, bins = 100)
-        plt.savefig(f"./visualisations/bootstrap_peak_locking/{folder}/{filename}_sinc.png")
+        #plt.savefig(f"./visualisations/bootstrap_peak_locking/{folder}/{filename}_sinc.png")
         plt.show()
         plt.close()
 
