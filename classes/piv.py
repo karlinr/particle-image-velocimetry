@@ -3,19 +3,20 @@ import scipy.optimize
 import tifffile as tf
 import msl_sad_correlation as msc
 import math
+import matplotlib.pyplot as plt
 
 
 class PIV:
     def __init__(self, _filename, _iw, _sa, _inc, _threshold, _pfmethod, _pad = False):
         """
         Creates a particle image velocimetry object.
-        :param _filename (string): A tif video
-        :param _iw (int): Inner interrogation window
-        :param _sa (int): Search area for larger interrogation window
-        :param _inc (int): Increment for velocity field
-        :param _threshold (float): Minimum particle threshold
-        :param _pfmethod (string): peak-finding method: "peak", "5pointgaussian", "9pointgaussian", "sinc", "gaussian"
-        :param _pad (bool): Whether to pad the input tif video
+        :param _filename: A tif video
+        :param _iw: Inner interrogation window
+        :param _sa: Search area for larger interrogation window
+        :param _inc: Increment for velocity field
+        :param _threshold: Minimum particle threshold
+        :param _pfmethod: peak-finding method: "peak", "5pointgaussian", "9pointgaussian", "sinc", "gaussian"
+        :param _pad: Whether to pad the input tif video
         """
         # Get config variables
         self.filename = _filename
@@ -26,11 +27,21 @@ class PIV:
         self.pfmethod = _pfmethod
         self.video = tf.imread(self.filename).astype(np.ushort)
         if _pad:
+            video_for_display = np.pad(self.video, [(0, 0), (int(self.sa + 0.5 * self.iw), int(self.sa + 0.5 * self.iw)),
+                                                    (int(self.sa + 0.5 * self.iw), int(self.sa + 0.5 * self.iw))], mode = "minimum")
             self.video = np.pad(self.video, [(0, 0), (int(self.sa + 0.5 * self.iw), int(self.sa + 0.5 * self.iw)),
-                                             (int(self.sa + 0.5 * self.iw), int(self.sa + 0.5 * self.iw))], mode = "minimum")
+                                             (int(self.sa + 0.5 * self.iw), int(self.sa + 0.5 * self.iw))])
+        else:
+            video_for_display = self.video
+        self.intensity_array_for_display = np.sum(video_for_display[::2], axis = 0)
+
         self.frames = int(self.video.shape[0])
         self.width = int(((self.video.shape[1] + self.inc) - (2 * self.sa + self.iw)) // self.inc)
         self.height = int(((self.video.shape[2] + self.inc) - (2 * self.sa + self.iw)) // self.inc)
+
+        # Get offset to centre vector locations
+        self.xoffset = int((self.video.shape[1] - ((self.width - 1) * self.inc + 2 * self.sa + self.iw))//2)
+        self.yoffset = int((self.video.shape[2] - ((self.height - 1) * self.inc + 2 * self.sa + self.iw))//2)
 
         # Set init variables
         self.intensity_array = None
@@ -43,9 +54,8 @@ class PIV:
         self.resampled_correlation_matrices_averaged = None
 
         # Run correlation averaged PIV
-        # print(f"Running PIV for {self.filename} with IW:{self.iw}, SA:{self.sa}, inc:{self.inc}, threshold:{self.threshold}, pfmethod: {self.pfmethod}")
+        #print(f"Running PIV for {self.filename} with IW:{self.iw}, SA:{self.sa}, inc:{self.inc}, threshold:{self.threshold}, pfmethod: {self.pfmethod}")
         self.run_PIV()
-        # print("Complete", end = "\n\n")
 
     def run_PIV(self):
         """
@@ -74,7 +84,7 @@ class PIV:
         """
         # print("--Getting threshold array...", end = " ")
         intensity_array = np.array(
-            [np.sum(self.intensity_array[j * self.inc: (j * self.inc) + (2 * self.sa + self.iw), k * self.inc: (k * self.inc) + (2 * self.sa + self.iw)]) for j
+            [np.sum(self.intensity_array[j * self.inc + self.xoffset: (j * self.inc) + (2 * self.sa + self.iw) + self.xoffset, k * self.inc + self.yoffset: (k * self.inc) + (2 * self.sa + self.iw) + self.yoffset]) for j
              in range(0, self.width) for k
              in range(0, self.height)])
         intensity_array = intensity_array - np.min(intensity_array)
@@ -102,8 +112,8 @@ class PIV:
                 for k in range(0, self.height):
                     if self.threshold_array[j, k]:
                         # Get coordinates
-                        tl_iw2_x = int(j * self.inc)
-                        tl_iw2_y = int(k * self.inc)
+                        tl_iw2_x = int(j * self.inc + self.xoffset)
+                        tl_iw2_y = int(k * self.inc + self.yoffset)
                         tl_iw1_x = int(tl_iw2_x + self.sa)
                         tl_iw1_y = int(tl_iw2_y + self.sa)
                         br_iw1_x = int(tl_iw1_x + self.iw)
@@ -134,8 +144,8 @@ class PIV:
     def get_velocity_vector_from_correlation_matrix(self, _correlation_matrix, _pfmethod = None):
         """
 
-        :param _correlation_matrix (np.array):
-        :param _pfmethod (string): peak-finding method: "peak", "5pointgaussian", "9pointgaussian", "sinc", "gaussian"
+        :param _correlation_matrix:
+        :param _pfmethod: peak-finding method: "peak", "5pointgaussian", "9pointgaussian", "sinc", "gaussian"
         :return:
         """
         correlation_matrix = -_correlation_matrix + np.max(_correlation_matrix)
@@ -173,6 +183,18 @@ class PIV:
                 subpixel = [(xl - xr) / (2 * (xr - 2 * xc + xl)), (ya - yb) / (2 * (yb - 2 * yc + ya))]
                 u = -(peak_position[0] - (correlation_matrix.shape[0] - 1) / 2 + subpixel[0])
                 v = -(peak_position[1] - (correlation_matrix.shape[1] - 1) / 2 + subpixel[1])
+                """if abs(u) == 0 or abs(v) == 0:
+                    print(subpixel)
+                    print(xc)
+                    print(xl)
+                    print(xr)
+                    print(yc)
+                    print(ya)
+                    print(yb, end = "\n\n")
+                    plt.imshow(correlation_matrix)
+                    plt.colorbar()
+                    plt.show()
+                    plt.close()"""
             else:
                 print("Falling back to peak fitting method, try increasing window search area")
                 return self.get_velocity_vector_from_correlation_matrix(_correlation_matrix, "peak")
@@ -236,7 +258,7 @@ class PIV:
     def get_velocity_field_from_correlation_matrices(self, correlation_matrix):
         """
 
-        :param correlation_matrix (np.array): Array of correlation matrices
+        :param correlation_matrix:
         :return: velocity_field
         """
         velocity_field = np.zeros((self.frames, self.width, self.height, 4))
@@ -244,8 +266,8 @@ class PIV:
             for j in range(0, self.width):
                 for k in range(0, self.height):
                     if self.threshold_array[j, k]:
-                        x = j * self.inc + self.sa + 0.5 * self.iw
-                        y = k * self.inc + self.sa + 0.5 * self.iw
+                        x = j * self.inc + self.sa + 0.5 * self.iw + self.xoffset
+                        y = k * self.inc + self.sa + 0.5 * self.iw + self.yoffset
                         velocity_field[f, j, k, :] = [x, y, *self.get_velocity_vector_from_correlation_matrix(correlation_matrix[f, j, k])]
         return velocity_field
 

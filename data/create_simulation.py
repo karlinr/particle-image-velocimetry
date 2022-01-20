@@ -17,29 +17,31 @@ def circular_gaussian(_x, _y, _mean_x, _mean_y, _sdx, _sdy, _theta):
 
 
 class Particle:
-    def __init__(self, _x, _y, _xvel, _yvel, _xsd, _ysd, _function, _brightness, _theta):
+    def __init__(self, _xvel, _yvel, _xsd, _ysd, _function, _brightness, _theta):
         # Assign particle variables
         self.function = _function
         self.brightness = _brightness
-        self.x = _x
-        self.y = _y
+        self.x = 0
+        self.y = 0
         self.xvel = _xvel
         self.yvel = _yvel
         self.xsd = _xsd
         self.ysd = _ysd
         self.theta = _theta
-        self.theta = 0
         self.velocity_x, self.velocity_y = self.function(self.x, self.y, self.xvel, self.yvel, self.xsd, self.ysd)
+
+        self.randomise_position()
 
     def step(self):
         # Advance a frame
         self.velocity_x, self.velocity_y = self.function(self.x, self.y, self.xvel, self.yvel, self.xsd, self.ysd)
         self.x += self.velocity_x
         self.y += self.velocity_y
+        self.theta += random.gauss(np.pi / 90, np.pi / 360)
 
     def randomise_position(self):
-        self.x = random.uniform(-particle_size, animation_width + particle_size)
-        self.y = random.uniform(-particle_size, animation_height + particle_size)
+        self.x = random.uniform(-simulation_width // 2, simulation_width // 2)
+        self.y = random.uniform(-simulation_height // 2, simulation_height // 2)
 
 
 def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd, num):
@@ -55,7 +57,7 @@ def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd, num):
             _x = random.uniform(-particle_size, animation_width + particle_size)
             _y = random.uniform(-particle_size, animation_height + particle_size)
 
-            a[i] = Particle(_x, _y, _xvel, _yvel, _xsd, _ysd, _function, 0.15 + 0.15 * random.uniform(0, 1), random.uniform(0, 2 * np.pi))
+            a[i] = Particle(_xvel, _yvel, _xsd, _ysd, _function, 0.025 + 0.025 * random.uniform(0, 1), random.uniform(0, 2 * np.pi))
 
         # Set up video array
         video_array = np.zeros((animation_frames, animation_width, animation_height), dtype=np.int_)
@@ -68,9 +70,10 @@ def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd, num):
                 if t % 2 == 0:
                     a[i].randomise_position()
                 a[i].step()
-                image_array = np.add(image_array, a[i].brightness * circular_gaussian(xx, yy, a[i].x, a[i].y, particle_size, particle_size, a[i].theta))
+                image_array = np.add(image_array, a[i].brightness * circular_gaussian(xx, yy, a[i].x, a[i].y, particle_size + random.gauss(0.5, 0.2), 1.2 * particle_size + random.gauss(0.5, 0.2), a[i].theta))
+            image_array = np.add(image_array, np.random.normal(250, 50, image_array.shape))
+            image_array = np.maximum(np.minimum(image_array, np.full(image_array.shape, 2**16 - 1)), np.full(image_array.shape, 0))
             # Save current frame to video
-            image_array = np.minimum(image_array, np.full(image_array.shape, 2**16 - 1))
             video_array[t] = image_array
 
         # Save to disk
@@ -86,12 +89,16 @@ random.seed()
 # Note : 76 is lowest frame count for zebrafish, 194 is max
 
 # Make videos
+simulation_width = 160
+simulation_height = 160
 animation_width = 80
 animation_height = 80
 animation_frames = 60
+particles = 3
+particle_size = 6
+#make_animation(field_functions.constant, "iw_investigation", 3.1, 3.1, 1, 1, 500)
+make_animation(field_functions.constant_with_gradient, "iw_investigation_gradient", 0, 3.25, 0, 0, 500)
 particles = 1
-particle_size = 7
-make_animation(field_functions.constant, "iw_investigation", 3.1, 3.1, 1, 1, 500)
 animation_width = 54
 animation_height = 54
 animation_frames = 90
