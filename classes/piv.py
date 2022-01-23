@@ -39,8 +39,6 @@ class PIV:
         self.width = int(((self.video.shape[1] + self.inc) - (2 * self.sa + self.iw)) // self.inc)
         self.height = int(((self.video.shape[2] + self.inc) - (2 * self.sa + self.iw)) // self.inc)
 
-
-
         # Set init variables
         self.intensity_array = None
         self.threshold_array = None
@@ -52,25 +50,11 @@ class PIV:
         self.resampled_correlation_matrices_averaged = None
         self.samplearg = None
         self.coordinates = None
+        self.xoffset = None
+        self.yoffset = None
 
         self.resample_reset()
-        self.get_image_intensity_sum()
-
-    def run_PIV(self):
-        """
-        Runs PIV
-        :return: None
-        """
-        self.resample_reset()
-        self.get_image_intensity_sum()
-        self.get_threshold_array()
-        self.get_spaced_coordinates()
-        self.get_correlation_matrices()
-
-        # self.get_velocity_field()
-        # self.get_velocity_field_from_correlation_matrices(self.correlation_matrices)
-        # self.get_correlation_averaged()
-        # self.get_correlation_averaged_velocity_field()
+        self.__get_image_intensity_sum()
 
     def get_spaced_coordinates(self):
         # Get offset to centre vector locations
@@ -80,9 +64,9 @@ class PIV:
         self.coordinates = np.zeros((self.width, self.height, 2))
         for j in range(0, self.width):
             for k in range(0, self.height):
-                #if self.threshold_array[j, k]:
-                x = j * self.inc + self.sa + 0.5 * self.iw + self.xoffset
-                y = k * self.inc + self.sa + 0.5 * self.iw + self.yoffset
+                # if self.threshold_array[j, k]:
+                x = j * self.inc
+                y = k * self.inc
                 self.coordinates[j, k, :] = [x, y]
 
     def set_coordinate(self, x, y):
@@ -91,9 +75,9 @@ class PIV:
         self.coordinates = np.zeros((1, 1, 2))
         self.threshold_array = np.zeros((1, 1))
         self.threshold_array[0, 0] = 1
-        self.coordinates[0, 0, :] = [x, y]
+        self.coordinates[0, 0, :] = [x - self.sa - 0.5 * self.iw, y - self.sa - 0.5 * self.iw]
 
-    def get_image_intensity_sum(self):
+    def __get_image_intensity_sum(self):
         """
 
         :return: None
@@ -111,7 +95,7 @@ class PIV:
              in range(0, self.width) for k
              in range(0, self.height)])
         intensity_array = intensity_array - np.min(intensity_array)
-        # FIX: normalisation constant is a minimum of 1 when float values could be possible
+        # TODO: fix : normalisation constant is a minimum of 1 when float values could be possible
         self.threshold_array = np.array([intensity_array / np.max([np.max(intensity_array), 1]) >= self.threshold]).reshape((self.width, self.height))
 
     def get_correlation_matrices(self):
@@ -119,10 +103,8 @@ class PIV:
 
         :return: None
         """
-        #velocity_field = np.zeros((self.frames, , self.coordinates.shape[1], 4))
-
         # Initialise arrays
-        self.correlation_matrices = np.empty((self.frames // 2, self.coordinates.shape[0],self.coordinates.shape[1], 2 * self.sa + 1, 2 * self.sa + 1), dtype = np.int_)
+        self.correlation_matrices = np.empty((self.frames // 2, self.coordinates.shape[0], self.coordinates.shape[1], 2 * self.sa + 1, 2 * self.sa + 1), dtype = np.int_)
 
         # Calculate the correlation matrices for each frame pair
         for f in range(0, self.frames, 2):
@@ -135,8 +117,8 @@ class PIV:
                 for k in range(0, self.coordinates.shape[1]):
                     if self.threshold_array[j, k]:
                         # Get coordinates
-                        tl_iw2_x = int(j * self.inc + self.xoffset)
-                        tl_iw2_y = int(k * self.inc + self.yoffset)
+                        tl_iw2_x = int(self.coordinates[j, k, 0] + self.xoffset)
+                        tl_iw2_y = int(self.coordinates[j, k, 1] + self.yoffset)
                         tl_iw1_x = int(tl_iw2_x + self.sa)
                         tl_iw1_y = int(tl_iw2_y + self.sa)
                         br_iw1_x = int(tl_iw1_x + self.iw)
@@ -150,10 +132,8 @@ class PIV:
 
                         # Calculate the absolute differences for the interrogation window
                         self.correlation_matrices[f // 2, j, k, :, :] = msc.sad_correlation(template.astype(np.ushort), template_to_match.astype(np.ushort))
-                        # abs_diff_map = np.array([np.sum(np.abs(template_to_match[m:m + self.iw, n:n + self.iw] - template)) for m in range(0, 2 * self.sa + 1) for n in range(0, 2 * self.sa + 1)]).reshape([2 * self.sa + 1, 2 * self.sa + 1])
-                        # self.correlation_matrices[f // 2, j, k, :, :] = abs_diff_map
 
-    def get_velocity_vector_from_correlation_matrix(self, _correlation_matrix, _pfmethod = None):
+    def __get_velocity_vector_from_correlation_matrix(self, _correlation_matrix, _pfmethod = None):
         """
 
         :param _correlation_matrix:
@@ -169,8 +149,8 @@ class PIV:
         else:
             pfmethod = _pfmethod
         if pfmethod == "peak":
-            u = peak_position[0] - (correlation_matrix.shape[0] - 1) / 2
-            v = peak_position[1] - (correlation_matrix.shape[1] - 1) / 2
+            u = -(peak_position[0] - (correlation_matrix.shape[0] - 1) / 2)
+            v = -(peak_position[1] - (correlation_matrix.shape[1] - 1) / 2)
         elif pfmethod == "parabolic":
             if correlation_matrix.shape[0] - 1 > peak_position[0] > 0 and correlation_matrix.shape[1] - 1 > peak_position[1] > 0:
                 xc = yc = correlation_matrix[peak_position[0], peak_position[1]]
@@ -182,8 +162,8 @@ class PIV:
                 u = -(peak_position[0] - (correlation_matrix.shape[0] - 1) / 2 + subpixel[0])
                 v = -(peak_position[1] - (correlation_matrix.shape[1] - 1) / 2 + subpixel[1])
             else:
-                print("Falling back to peak fitting method, try increasing window search area")
-                return self.get_velocity_vector_from_correlation_matrix(_correlation_matrix, "peak")
+                #print("Falling back to peak fitting method, try increasing window search area")
+                return self.__get_velocity_vector_from_correlation_matrix(_correlation_matrix, "peak")
         elif pfmethod == "5pointgaussian":
             # TODO: seperate if statement so gaussian interpolation is calculated for each separately.
             if correlation_matrix.shape[0] - 1 > peak_position[0] > 0 and correlation_matrix.shape[1] - 1 > peak_position[1] > 0:
@@ -196,8 +176,8 @@ class PIV:
                 u = -(peak_position[0] - (correlation_matrix.shape[0] - 1) / 2 + subpixel[0])
                 v = -(peak_position[1] - (correlation_matrix.shape[1] - 1) / 2 + subpixel[1])
             else:
-                print("Falling back to peak fitting method, try increasing window search area")
-                return self.get_velocity_vector_from_correlation_matrix(_correlation_matrix, "peak")
+                #print("Falling back to peak fitting method, try increasing window search area")
+                return self.__get_velocity_vector_from_correlation_matrix(_correlation_matrix, "peak")
         elif pfmethod == "9pointgaussian":
             # https://link.springer.com/content/pdf/10.1007/s00348-005-0942-3.pdf
             if correlation_matrix.shape[0] - 1 > peak_position[0] > 0 and correlation_matrix.shape[1] - 1 > peak_position[1] > 0:
@@ -220,8 +200,8 @@ class PIV:
                 u = -(peak_position[0] - (correlation_matrix.shape[0] - 1) / 2 + subpixel[0])
                 v = -(peak_position[1] - (correlation_matrix.shape[1] - 1) / 2 + subpixel[1])
             else:
-                print("Falling back to peak fitting method, try increasing window search area.")
-                return self.get_velocity_vector_from_correlation_matrix(_correlation_matrix, "peak")
+                #print("Falling back to peak fitting method, try increasing window search area.")
+                return self.__get_velocity_vector_from_correlation_matrix(_correlation_matrix, "peak")
         elif pfmethod == "sinc":
             # https://www.ipol.im/pub/art/2011/g_lmii/article.pdf
             # Slow and buggy - do not use
@@ -235,8 +215,8 @@ class PIV:
                 u = -(res.x[0] - (correlation_matrix.shape[0] - 1) / 2)
                 v = -(res.x[1] - (correlation_matrix.shape[1] - 1) / 2)
             else:
-                print("Falling back to peak fitting method, try increasing window search area.")
-                return self.get_velocity_vector_from_correlation_matrix(_correlation_matrix, "peak")
+                #print("Falling back to peak fitting method, try increasing window search area.")
+                return self.__get_velocity_vector_from_correlation_matrix(_correlation_matrix, "peak")
         elif pfmethod == "gaussian":
             # Slow and buggy - do not use
             def gaussian2D(_xy, _a, _x0, _y0, _sigma_x, _sigma_y, _bg):
@@ -248,13 +228,13 @@ class PIV:
                 u = -(popt[1] - (correlation_matrix.shape[0] - 1) / 2)
                 v = -(popt[2] - (correlation_matrix.shape[1] - 1) / 2)
             except RuntimeError:
-                print("Falling back to 9pointgaussian fitting method, curve fit unsuccessful.")
-                return self.get_velocity_vector_from_correlation_matrix(_correlation_matrix, "9pointgaussian")
+                #print("Falling back to 9pointgaussian fitting method, curve fit unsuccessful.")
+                return self.__get_velocity_vector_from_correlation_matrix(_correlation_matrix, "9pointgaussian")
         else:
             raise ValueError("Invalid peak fitting method.")
         return u, v
 
-    def get_velocity_field_from_correlation_matrices(self, correlation_matrix):
+    def __get_velocity_field_from_correlation_matrices(self, correlation_matrix):
         """
 
         :param correlation_matrix:
@@ -265,7 +245,7 @@ class PIV:
             for j in range(0, self.coordinates.shape[0]):
                 for k in range(0, self.coordinates.shape[1]):
                     if self.threshold_array[j, k]:
-                        velocity_field[f, j, k, :] = [self.coordinates[j, k, 0], self.coordinates[j, k, 1], *self.get_velocity_vector_from_correlation_matrix(correlation_matrix[f, j, k])]
+                        velocity_field[f, j, k, :] = [self.coordinates[j, k, 0], self.coordinates[j, k, 1], *self.__get_velocity_vector_from_correlation_matrix(correlation_matrix[f, j, k])]
         return velocity_field
 
     def resample(self, samples = None, sample_size = None):
@@ -283,7 +263,7 @@ class PIV:
 
         :return:
         """
-        self.velocity_field = self.get_velocity_field_from_correlation_matrices(self.correlation_matrices)
+        self.velocity_field = self.__get_velocity_field_from_correlation_matrices(self.correlation_matrices)
 
     def get_correlation_averaged_velocity_field(self):
         """
@@ -292,7 +272,7 @@ class PIV:
         """
         self.correlation_averaged = np.empty((1, *self.correlation_matrices[self.samplearg].shape[1:5]), dtype = np.float64)
         self.correlation_averaged[0] = np.mean(self.correlation_matrices[self.samplearg], axis = 0)
-        self.correlation_averaged_velocity_field = self.get_velocity_field_from_correlation_matrices(self.correlation_averaged)
+        self.correlation_averaged_velocity_field = self.__get_velocity_field_from_correlation_matrices(self.correlation_averaged)
 
     # Todo : Add error checking
     # Return methods
@@ -314,18 +294,15 @@ class PIV:
     def velocity_angle_averaged(self):
         return np.arctan2(self.y_velocity_averaged()[:, :], self.x_velocity_averaged()[:, :])
 
-    # Todo : Make these updateable
-    # Todo : calculate these at the start
     def xcoords(self):
-        return self.coordinates[:, :, 0]
+        return self.coordinates[:, :, 0] + self.sa + 0.5 * self.iw
 
     def ycoords(self):
-        return self.coordinates[:, :, 1]
+        return self.coordinates[:, :, 1] + self.sa + 0.5 * self.iw
 
-    def plot_flow_field(self, frame = None):
-        X = self.xcoords()[:, :]
-        Y = self.ycoords()[:, :]
-        plt.figure(figsize = (12, 7))
+    def plot_flow_field(self, savelocation = None, frame = None):
+        plt.figure()
+        #plt.figure(figsize = (12, 7))
         if frame is None:
             plt.title(f"{self.filename}\n Averaged")
             U = self.x_velocity_averaged()[:, :]
@@ -337,10 +314,12 @@ class PIV:
         mag = np.sqrt(U ** 2 + V ** 2)
         plt.imshow(np.flip(np.flip(np.rot90(self.intensity_array_for_display), axis = 1)), cmap = "gray", aspect = "auto")
         plt.quiver(self.xcoords(), self.ycoords(), U / mag, V / mag, mag, angles = "xy")
-        #plt.clim(0, 24)
+        # plt.clim(0, 24)
         plt.colorbar()
         plt.xlim(0, self.intensity_array.shape[0])
         plt.ylim(0, self.intensity_array.shape[1])
         plt.gca().invert_yaxis()
-        # plt.savefig(f"visualisations/zebrafish_flow_field/sinc/{self.filename}.png")
+        if savelocation is not None:
+            plt.savefig(savelocation)
         plt.show()
+        plt.close("all")
