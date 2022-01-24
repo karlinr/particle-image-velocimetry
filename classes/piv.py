@@ -104,7 +104,7 @@ class PIV:
         :return: None
         """
         # Initialise arrays
-        self.correlation_matrices = np.empty((self.frames // 2, self.coordinates.shape[0], self.coordinates.shape[1], 2 * self.sa + 1, 2 * self.sa + 1), dtype = np.int_)
+        self.correlation_matrices = np.empty((self.frames // 2, self.coordinates.shape[0], self.coordinates.shape[1], 2 * self.sa + 1, 2 * self.sa + 1), dtype = np.uintc)
 
         # Calculate the correlation matrices for each frame pair
         for f in range(0, self.frames, 2):
@@ -248,12 +248,13 @@ class PIV:
                         velocity_field[f, j, k, :] = [self.coordinates[j, k, 0], self.coordinates[j, k, 1], *self.__get_velocity_vector_from_correlation_matrix(correlation_matrix[f, j, k])]
         return velocity_field
 
-    def resample(self, samples = None, sample_size = None):
-        if samples is None:
-            samples = self.video.shape[0] // 2
+    def resample(self, sample_size = None):
         if sample_size is None:
             sample_size = self.video.shape[0] // 2
-        self.samplearg = np.random.choice(samples, sample_size)
+        self.samplearg = np.random.choice(self.video.shape[0] // 2, sample_size)
+
+    def resample_specific(self, args):
+        self.samplearg = args
 
     def resample_reset(self):
         self.samplearg = np.arange(self.video.shape[0] // 2)
@@ -322,4 +323,4 @@ class PIV:
         if savelocation is not None:
             plt.savefig(savelocation)
         plt.show()
-        plt.close("all")
+        plt.clf()

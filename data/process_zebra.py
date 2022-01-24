@@ -17,9 +17,13 @@ for g, grouping in enumerate(plist):
                 lower_index = int(os.path.splitext(video)[0])
                 upper_index = int(os.path.splitext(video)[0]) + 1000
                 if lower_index <= frame < upper_index:
+                    print(f)
+                    print(g)
+                    print(video)
+                    print(frame - lower_index)
                     video_array[f] = current_video[frame - lower_index]
                     video_array[f + 1] = current_video[frame - lower_index + 1]
                     f += 2
-    tf.imwrite(f"./zebrafish/processed/{g}.tif", video_array.astype(np.int16))
+    tf.imwrite(f"./zebrafish/processed/{g}.tif", video_array.astype(np.ushort))
 
 print("Finished")

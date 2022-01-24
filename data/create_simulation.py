@@ -96,22 +96,4 @@ animation_height = 80
 animation_frames = 60
 particles = 3
 particle_size = 6
-#make_animation(field_functions.constant, "iw_investigation", 3.1, 3.1, 1, 1, 500)
-make_animation(field_functions.constant_with_gradient, "iw_investigation_gradient", 0, 3.25, 0, 0, 500)
-particles = 1
-animation_width = 54
-animation_height = 54
-animation_frames = 90
-#make_animation(field_functions.constant, "constant_vx3-0_vxsd1-0_vy3-0_vysd1-0_f2000", 3.0, 3.0, 1, 1, 2000)
-#make_animation(field_functions.constant, "constant_vx3-5_vxsd1-0_vy3-5_vysd1-0_f1", 3.5, 3.5, 1, 1, 1)
-#make_animation(field_functions.constant, "constant_vx3-0_vxsd1-0_vy3-0_vysd1-0_f1", 3.0, 3.0, 1, 1, 1)
-#make_animation(field_functions.constant, "constant_vx3-5_vxsd0-0_vy0-0_vysd0-0_f1", 3.5, 0, 0, 0, 1)
-#make_animation(field_functions.constant, "constant_vx0-0_vxsd0-0_vy3-5_vysd0-0_f1", 0, 3.5, 0, 0, 1)
-#make_animation(field_functions.constant, "constant_vx3-5_vxsd0-0_vy3-5_vysd0-0_f1", 3.5, 3.5, 0, 0, 1)
-#make_animation(field_functions.constant_with_gradient, "gradient_vx3-25_vxsd1-0_vy0-0_vysd0-0_f500", 3.25, 0, 0, 0, 500)
-#make_animation(field_functions.constant, "constant_vx3-25_vxsd1-0_vy3-25_vysd1-0_f500", 3.25, 3.25, 1, 1, 500)
-#make_animation(field_functions.constant, "constant_vx0-0_vxsd0-0_vy3-0_vysd0-0_f500", 0, 3, 0, 0, 500)
-#make_animation(field_functions.constant, "constant_vx3-0_vxsd0-0_vy0-0_vysd0-0_f500", 3, 0, 0, 0, 500)
-#make_animation(field_functions.constant, "constant_vx3-0_vxsd0-0_vy3-0_vysd0-0_f500", 3, 3, 0, 0, 500)
-#make_animation(field_functions.constant, "constant_vx3-25_vxsd0-0_vy3-25_vysd0-0_f500", 3.25, 3.25, 0, 0, 500)
-#make_animation(field_functions.constant, "constant_vx3-5_vxsd0-0_vy3-5_vysd0-0_f500", 3.5, 3.5, 0, 0, 500)
+make_animation(field_functions.gradient, "gradient", 0, 3.25, 0, 0, 500)
