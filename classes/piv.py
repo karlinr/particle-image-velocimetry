@@ -240,7 +240,7 @@ class PIV:
         :param correlation_matrix:
         :return: velocity_field
         """
-        velocity_field = np.zeros((self.frames, self.coordinates.shape[0], self.coordinates.shape[1], 4))
+        velocity_field = np.zeros((self.frames // 2, self.coordinates.shape[0], self.coordinates.shape[1], 4))
         for f in range(0, correlation_matrix.shape[0]):
             for j in range(0, self.coordinates.shape[0]):
                 for k in range(0, self.coordinates.shape[1]):
@@ -255,6 +255,11 @@ class PIV:
 
     def resample_specific(self, args):
         self.samplearg = args
+
+    def resample_from_array(self, arr, sample_size = None):
+        if sample_size is None:
+            sample_size = len(arr)
+        self.samplearg = np.random.choice(arr, sample_size)
 
     def resample_reset(self):
         self.samplearg = np.arange(self.video.shape[0] // 2)
@@ -283,11 +288,11 @@ class PIV:
     def y_velocity_averaged(self):
         return self.correlation_averaged_velocity_field[0][:, :, 3]
 
-    def x_velocity(self, frame):
-        return self.velocity_field[frame][:, :, 2]
+    def x_velocity(self):
+        return self.velocity_field[:, :, :, 2]
 
-    def y_velocity(self, frame):
-        return self.velocity_field[frame][:, :, 3]
+    def y_velocity(self):
+        return self.velocity_field[:][:, :, 3]
 
     def velocity_magnitude_averaged(self):
         return np.sqrt(self.x_velocity_averaged()[:, :] ** 2 + self.y_velocity_averaged()[:, :] ** 2)

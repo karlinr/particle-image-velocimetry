@@ -22,7 +22,7 @@ allvelsbs_phase = []
 for filename in os.listdir(f"../data/zebrafish/processed/"):
     # Setup PIV
     piv = PIV(f"../data/zebrafish/processed/{filename}", 24, 24, 24, 0, "5pointgaussian", False)
-    piv.set_coordinate(200, 240)
+    piv.set_coordinate(201, 240)
     #piv.set_coordinate(150, 300)
     piv.get_correlation_matrices()
     piv.get_correlation_averaged_velocity_field()
@@ -35,7 +35,7 @@ for filename in os.listdir(f"../data/zebrafish/processed/"):
 
     piv.get_velocity_field()
     for frame in range(piv.frames//2):
-        allvels.append(piv.x_velocity(frame))
+        allvels.append(piv.x_velocity()[frame])
         #allvels_phase.append(int(os.path.splitext(os.path.basename(filename))[0]) / 31 * np.pi * 2.0)
         allvels_phase.append(int(os.path.splitext(os.path.basename(filename))[0]))
 
@@ -55,7 +55,7 @@ xs, ys, err = zip(*sorted(zip(phases, vels, stderrs)))
 plt.figure(figsize = (8, 8))
 plt.axhline(0, c = "black", ls = ":", lw = 0.5)
 plt.plot(xs, ys, c = "black", ls = "--", lw = 0.5)
-#plt.errorbar(xs, ys, yerr = err, capsize = 3, capthick = 1, elinewidth = 1, ls = "None", c = "black")
+plt.errorbar(xs, ys, yerr = err, capsize = 3, capthick = 1, elinewidth = 1, ls = "None", c = "black")
 plt.scatter(xs, ys, c = "black", s = 6)
 plt.xlabel("Phase (rads)")
 plt.ylabel("X displacement (px)")
@@ -63,7 +63,7 @@ plt.ylabel("X displacement (px)")
 plt.tight_layout()
 """for x in np.linspace(0, 2 * np.pi, 31, endpoint = False):
     plt.axvline(x - 1/31 * np.pi, lw = 0.2, ls = ":", c = "black")"""
-plt.scatter(allvelsbs_phase, allvelsbs, s = 1, alpha = 0.2)
+#plt.scatter(allvelsbs_phase, allvelsbs, s = 1, alpha = 0.2)
 #plt.scatter(allvels_phase, allvels, s = 1)
 plt.show()
 plt.clf()
