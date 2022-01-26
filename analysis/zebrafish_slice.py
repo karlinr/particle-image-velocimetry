@@ -22,6 +22,7 @@ allvelsbs_phase = []
 for filename in os.listdir(f"../data/zebrafish/processed/"):
     # Setup PIV
     piv = PIV(f"../data/zebrafish/processed/{filename}", 24, 24, 24, 0, "5pointgaussian", False)
+    piv.add_video(f"../data/zebrafish/processed/{filename}")
     piv.set_coordinate(201, 240)
     #piv.set_coordinate(150, 300)
     piv.get_correlation_matrices()

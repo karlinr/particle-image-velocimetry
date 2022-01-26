@@ -2,32 +2,57 @@ from classes.piv import PIV
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-from scipy.fft import fft, ifft
-
 
 # MPL
 #plt.style.use('dark_background')
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["mathtext.fontset"] = "dejavuserif"
 
+for binsize in [10, 15, 20, 30, 40, 50]:
+    files = os.listdir("../data/zebrafish/unbinned/")
+    phases = [float(os.path.splitext(filename)[0]) for filename in files]
+    bins = np.linspace(np.min(phases), np.max(phases), binsize)
+    np.set_printoptions(threshold=np.inf)
+    indices = np.digitize(phases, bins)
 
-files = sorted(os.listdir("../data/zebrafish/unbinned/"))
+    vs = []
+    phases = []
+
+    import time
+
+    for i, b in enumerate(bins):
+        filestopiv = np.array(files)[indices == i + 1]
+        piv = PIV(b, 24, 24, 24, 0.6, "5pointgaussian", False)
+        piv.add_video(["../data/zebrafish/unbinned/" + str(f) for f in filestopiv])
+        piv.set_coordinate(201, 240)
+        piv.get_correlation_matrices()
+        piv.get_correlation_averaged_velocity_field()
+        vs.append(piv.x_velocity_averaged()[0, 0])
+        phases.append(b)
+
+    plt.plot(phases, vs, label = f"Bins : {binsize}")
+plt.legend()
+plt.show()
+
 
 vs = []
 phases = []
 vs_binned = []
 phases_binned = []
 
-for filename in files:
-    piv = PIV(f"../data/zebrafish/unbinned/{filename}", 24, 60, 24, 0, "5pointgaussian", False)
+"""for filename in files:
+    piv = PIV(f"../data/zebrafish/unbinned/{filename}", 24, 24, 24, 0, "5pointgaussian", False)
+    piv.add_video(f"../data/zebrafish/unbinned/{filename}")
     piv.set_coordinate(201, 240)
     piv.get_correlation_matrices()
     piv.get_correlation_averaged_velocity_field()
     vs.append(piv.x_velocity_averaged()[0, 0])
     phases.append(float(os.path.splitext(filename)[0]))
+    piv.plot_flow_field()
 
 for filename in os.listdir(f"../data/zebrafish/processed/"):
-    piv = PIV(f"../data/zebrafish/processed/{filename}", 24, 60, 24, 0, "5pointgaussian", False)
+    piv = PIV(f"../data/zebrafish/processed/{filename}", 24, 24, 24, 0, "5pointgaussian", False)
+    piv.add_video(f"../data/zebrafish/processed/{filename}")
     piv.set_coordinate(201, 240)
     piv.get_correlation_matrices()
     piv.get_correlation_averaged_velocity_field()
@@ -37,7 +62,7 @@ for filename in os.listdir(f"../data/zebrafish/processed/"):
 
 plt.scatter(phases, vs, s = 1)
 plt.scatter(phases_binned, vs_binned, s = 5, c = "black")
-plt.show()
+plt.show()"""
 
 """# Setup Arrays
 phases = []

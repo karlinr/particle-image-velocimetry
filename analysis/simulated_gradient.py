@@ -18,6 +18,7 @@ allvels_phase = []
 for filename in os.listdir(f"../data/simulated/gradient/"):
     # Setup PIV
     piv = PIV(f"../data/simulated/gradient/{filename}", 24, 24, 74, 0, "5pointgaussian", False)
+    piv.add_video(f"../data/simulated/gradient/{filename}")
     #piv.set_coordinate(37, 37)
     piv.get_spaced_coordinates()
     piv.get_correlation_matrices()

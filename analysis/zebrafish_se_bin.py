@@ -11,6 +11,7 @@ xs = []
 ys = []
 
 piv = PIV(f"../data/zebrafish/processed/20.tif", 24, 24, 24, 0, "5pointgaussian", False)
+piv.add_video(f"../data/zebrafish/processed/20.tif")
 piv.set_coordinate(201, 240)
 piv.get_correlation_matrices()
 piv.get_correlation_averaged_velocity_field()

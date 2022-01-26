@@ -10,6 +10,7 @@ plt.rcParams["mathtext.fontset"] = "dejavuserif"
 
 vs = []
 piv = PIV(f"../data/simulated/constant3.5/1.tif", 24, 24, 24, 0, "5pointgaussian", False)
+piv.add_video(f"../data/simulated/constant3.5/1.tif")
 piv.set_coordinate(36, 36)
 piv.get_correlation_matrices()
 for i in range(5000):
@@ -24,6 +25,7 @@ plt.show()
 vs = []
 for filename in os.listdir("../data/simulated/constant3.5/"):
     piv = PIV(f"../data/simulated/constant3.5/{filename}", 24, 24, 24, 0, "5pointgaussian", False)
+    piv.add_video(f"../data/simulated/constant3.5/{filename}")
     piv.set_coordinate(36, 36)
     piv.get_correlation_matrices()
     piv.get_correlation_averaged_velocity_field()

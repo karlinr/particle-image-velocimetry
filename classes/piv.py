@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 
 class PIV:
-    def __init__(self, _filename, _iw, _sa, _inc, _threshold, _pfmethod, _pad = False):
+    def __init__(self, _title, _iw, _sa, _inc, _threshold, _pfmethod, _pad = False):
         """
         Creates a particle image velocimetry object.
         :param _filename: A tif video
@@ -19,25 +19,13 @@ class PIV:
         :param _pad: Whether to pad the input tif video
         """
         # Get config variables
-        self.filename = _filename
+        self.title = _title
         self.iw = _iw
         self.sa = _sa
         self.inc = _inc
         self.threshold = _threshold
         self.pfmethod = _pfmethod
-        self.video = tf.imread(self.filename).astype(np.ushort)
-        if _pad:
-            video_for_display = np.pad(self.video, [(0, 0), (int(self.sa + 0.5 * self.iw), int(self.sa + 0.5 * self.iw)),
-                                                    (int(self.sa + 0.5 * self.iw), int(self.sa + 0.5 * self.iw))], mode = "minimum")
-            self.video = np.pad(self.video, [(0, 0), (int(self.sa + 0.5 * self.iw), int(self.sa + 0.5 * self.iw)),
-                                             (int(self.sa + 0.5 * self.iw), int(self.sa + 0.5 * self.iw))])
-        else:
-            video_for_display = self.video
-        self.intensity_array_for_display = np.sum(video_for_display[::2], axis = 0)
-
-        self.frames = int(self.video.shape[0])
-        self.width = int(((self.video.shape[1] + self.inc) - (2 * self.sa + self.iw)) // self.inc)
-        self.height = int(((self.video.shape[2] + self.inc) - (2 * self.sa + self.iw)) // self.inc)
+        self.pad = _pad
 
         # Set init variables
         self.intensity_array = None
@@ -52,14 +40,51 @@ class PIV:
         self.coordinates = None
         self.xoffset = None
         self.yoffset = None
+        self.video_raw = None
+        self.video = None
+        self.frames = None
+        self.width = None
+        self.height = None
+        self.intensity_array_for_display = None
+
+    def add_video(self, filename):
+        """
+        Takes a list of video files and appends them
+        :param filename:
+        :return:
+        """
+        if self.video_raw is None:
+            if type(filename) is list:
+                self.video_raw = tf.imread(filename[0]).astype(np.ushort)
+                for file in filename[1:]:
+                    self.video_raw = np.append(self.video_raw, tf.imread(file).astype(np.ushort), axis = 0)
+            else:
+                self.video_raw = tf.imread(filename).astype(np.ushort)
+        else:
+            if type(filename) is list:
+                for file in filename:
+                    self.video_raw = np.append(self.video_raw, tf.imread(file).astype(np.ushort), axis = 0)
+            else:
+                self.video_raw = np.append(self.video_raw, tf.imread(filename).astype(np.ushort), axis = 0)
+
+        self.video = self.video_raw
+
+        if self.pad:
+            video_for_display = np.pad(self.video, [(0, 0), (int(self.sa + 0.5 * self.iw), int(self.sa + 0.5 * self.iw)),
+                                                    (int(self.sa + 0.5 * self.iw), int(self.sa + 0.5 * self.iw))], mode = "minimum")
+            self.video = np.pad(self.video, [(0, 0), (int(self.sa + 0.5 * self.iw), int(self.sa + 0.5 * self.iw)),
+                                             (int(self.sa + 0.5 * self.iw), int(self.sa + 0.5 * self.iw))])
+        else:
+            video_for_display = self.video
+        self.intensity_array_for_display = np.sum(video_for_display[::2], axis = 0)
+
+        self.frames = int(self.video.shape[0])
+        self.width = int(((self.video.shape[1] + self.inc) - (2 * self.sa + self.iw)) // self.inc)
+        self.height = int(((self.video.shape[2] + self.inc) - (2 * self.sa + self.iw)) // self.inc)
 
         self.resample_reset()
         self.__get_image_intensity_sum()
-
-    def add_video(self, filename):
-        video_to_add = np.pad(tf.imread(filename).astype(np.ushort), [(0, 0), (int(self.sa + 0.5 * self.iw), int(self.sa + 0.5 * self.iw)),
-                            (int(self.sa + 0.5 * self.iw), int(self.sa + 0.5 * self.iw))])
-        self.video = np.append(self.video, video_to_add)
+        return 0
 
     def get_spaced_coordinates(self):
         # Get offset to centre vector locations
@@ -306,26 +331,26 @@ class PIV:
         return np.arctan2(self.y_velocity_averaged()[:, :], self.x_velocity_averaged()[:, :])
 
     def xcoords(self):
-        return self.coordinates[:, :, 0] + self.sa + 0.5 * self.iw
+        return self.coordinates[:, :, 0] + self.sa + 0.5 * self.iw + self.xoffset
 
     def ycoords(self):
-        return self.coordinates[:, :, 1] + self.sa + 0.5 * self.iw
+        return self.coordinates[:, :, 1] + self.sa + 0.5 * self.iw + self.yoffset
 
     def plot_flow_field(self, savelocation = None, frame = None):
-        plt.figure()
-        #plt.figure(figsize = (12, 7))
+        #plt.figure()
+        plt.figure(figsize = (12, 7))
         if frame is None:
-            plt.title(f"{self.filename}\n Averaged")
+            plt.title(f"{self.title}\n Averaged")
             U = self.x_velocity_averaged()[:, :]
             V = self.y_velocity_averaged()[:, :]
         else:
-            plt.title(f"{self.filename}\n Frame : {frame}")
+            plt.title(f"{self.title}\n Frame : {frame}")
             U = self.x_velocity(frame)[:, :]
             V = self.y_velocity(frame)[:, :]
         mag = np.sqrt(U ** 2 + V ** 2)
         plt.imshow(np.flip(np.flip(np.rot90(self.intensity_array_for_display), axis = 1)), cmap = "gray", aspect = "auto")
         plt.quiver(self.xcoords(), self.ycoords(), U / mag, V / mag, mag, angles = "xy")
-        # plt.clim(0, 24)
+        plt.clim(0, 24)
         plt.colorbar()
         plt.xlim(0, self.intensity_array.shape[0])
         plt.ylim(0, self.intensity_array.shape[1])
