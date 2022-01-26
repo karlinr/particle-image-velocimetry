@@ -1,7 +1,6 @@
 from classes.piv import PIV
 import numpy as np
 import matplotlib.pyplot as plt
-import os
 
 # MPL
 # plt.style.use('dark_background')
@@ -22,10 +21,10 @@ for s in range(piv.frames // 2 - 2):
         piv.resample(s + 2)
         piv.get_correlation_averaged_velocity_field()
         vels.append(piv.x_velocity_averaged()[0])
-    xs.append(s)
+    xs.append(s + 2)
     ys.append(np.std(vels))
 
-plt.scatter(xs, ys)
+plt.scatter(xs, 1 / np.square(ys))
 plt.xlabel("Number of correlation matrices")
-plt.ylabel("Standard Error (px)")
+plt.ylabel("$\sigma^{-2}$")
 plt.show()

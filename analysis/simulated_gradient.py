@@ -17,11 +17,12 @@ allvels_phase = []
 
 for filename in os.listdir(f"../data/simulated/gradient/"):
     # Setup PIV
-    piv = PIV(f"../data/simulated/gradient/{filename}", 24, 15, 1, 0, "5pointgaussian", False)
-    piv.set_coordinate(40, 40)
-    #piv.get_spaced_coordinates()
+    piv = PIV(f"../data/simulated/gradient/{filename}", 24, 24, 74, 0, "5pointgaussian", False)
+    #piv.set_coordinate(37, 37)
+    piv.get_spaced_coordinates()
     piv.get_correlation_matrices()
     piv.get_correlation_averaged_velocity_field()
+    #piv.plot_flow_field()
 
     # Get PIV output
     phases.append(int(os.path.splitext(os.path.basename(filename))[0]) / 31 * np.pi * 2.0)
@@ -29,19 +30,22 @@ for filename in os.listdir(f"../data/simulated/gradient/"):
 
     # Get standard error
     vels_temp = []
-    for i in range(100):
+    for i in range(5000):
         piv.resample()
         piv.get_correlation_averaged_velocity_field()
         vels_temp.append(piv.x_velocity_averaged()[0, 0])
         allvels.append(piv.x_velocity_averaged()[0, 0])
         allvels_phase.append(int(os.path.splitext(os.path.basename(filename))[0]) / 31 * np.pi * 2.0)
     stderrs.append(np.std(vels_temp, ddof = 1))
+    plt.hist(vels_temp, bins = 200)
+    plt.axvline(piv.x_velocity_averaged()[0, 0], c = "black")
+    plt.show()
 
 # Plot it
 xs, ys, err = zip(*sorted(zip(phases, vels, stderrs)))
 plt.figure(figsize = (8, 8))
 plt.plot(xs, ys, c = "black", ls = "--", lw = 0.5)
-plt.errorbar(xs, ys, yerr = err, capsize = 3, capthick = 1, elinewidth = 1, ls = "None", c = "black")
+#plt.errorbar(xs, ys, yerr = err, capsize = 3, capthick = 1, elinewidth = 1, ls = "None", c = "black")
 print(np.mean(ys))
 plt.scatter(xs, ys, c = "black", s = 6)
 plt.xlabel("Phase (rads)")

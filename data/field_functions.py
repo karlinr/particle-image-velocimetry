@@ -19,7 +19,8 @@ def contra(_x, _y, _xvel, _yvel, _xsd, _ysd):
 
 def gradient(_x, _y, _xvel, _yvel, _xsd, _ysd):
     xvel = random.gauss(_xvel, _xsd)
-    yvel = 0.5 * (_yvel + (1/40) * _y * _yvel)
+    yvel = (1/37) * _x + _yvel - 1
+    print((_y, yvel))
     return xvel, yvel
 
 

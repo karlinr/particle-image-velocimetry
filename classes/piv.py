@@ -56,6 +56,11 @@ class PIV:
         self.resample_reset()
         self.__get_image_intensity_sum()
 
+    def add_video(self, filename):
+        video_to_add = np.pad(tf.imread(filename).astype(np.ushort), [(0, 0), (int(self.sa + 0.5 * self.iw), int(self.sa + 0.5 * self.iw)),
+                            (int(self.sa + 0.5 * self.iw), int(self.sa + 0.5 * self.iw))])
+        self.video = np.append(self.video, video_to_add)
+
     def get_spaced_coordinates(self):
         # Get offset to centre vector locations
         self.xoffset = int((self.video.shape[1] - ((self.width - 1) * self.inc + 2 * self.sa + self.iw)) // 2)
@@ -173,8 +178,8 @@ class PIV:
                 ya = math.log(correlation_matrix[peak_position[0], peak_position[1] - 1])
                 yb = math.log(correlation_matrix[peak_position[0], peak_position[1] + 1])
                 subpixel = [(xl - xr) / (2 * (xr - 2 * xc + xl)), (ya - yb) / (2 * (yb - 2 * yc + ya))]
-                u = -(peak_position[0] - (correlation_matrix.shape[0] - 1) / 2 + subpixel[0])
-                v = -(peak_position[1] - (correlation_matrix.shape[1] - 1) / 2 + subpixel[1])
+                u = -(peak_position[0] + subpixel[0] - (correlation_matrix.shape[0] - 1) / 2)
+                v = -(peak_position[1] + subpixel[1] - (correlation_matrix.shape[1] - 1) / 2)
             else:
                 #print("Falling back to peak fitting method, try increasing window search area")
                 return self.__get_velocity_vector_from_correlation_matrix(_correlation_matrix, "peak")

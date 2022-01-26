@@ -21,7 +21,8 @@ for filename in os.listdir(f"../data/zebrafish/processed/"):
     piv.get_correlation_matrices()
     piv.get_correlation_averaged_velocity_field()
     piv.get_velocity_field()
-    meanvelocity = piv.x_velocity_averaged()[0]
+    meanvelocity = piv.x_velocity_averaged().flatten()[0]
+    print(meanvelocity)
     means.append(meanvelocity)
 
     arr = np.flatnonzero(piv.x_velocity() > np.percentile(piv.x_velocity().flatten(), 68))
@@ -32,7 +33,9 @@ for filename in os.listdir(f"../data/zebrafish/processed/"):
     for i in range(100):
         piv.resample_from_array(arr)
         piv.get_correlation_averaged_velocity_field()
-        up.append(piv.x_velocity_averaged() - meanvelocity)
+        up.append(piv.x_velocity_averaged().flatten()[0] - meanvelocity)
+    """plt.hist(up, bins = 200)
+    plt.show()"""
     upstd.append(np.std(up, ddof = 1))
 
     arr = np.flatnonzero(piv.x_velocity() < np.percentile(piv.x_velocity().flatten(), 32))
@@ -43,7 +46,7 @@ for filename in os.listdir(f"../data/zebrafish/processed/"):
     for i in range(100):
         piv.resample_from_array(arr)
         piv.get_correlation_averaged_velocity_field()
-        low.append(piv.x_velocity_averaged() - meanvelocity)
+        low.append(piv.x_velocity_averaged().flatten()[0] - meanvelocity)
     lowstd.append(np.std(low, ddof = 1))
 
 
