@@ -8,8 +8,23 @@ import os
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["mathtext.fontset"] = "dejavuserif"
 
+files = os.listdir("../data/zebrafish/unbinned/")
+
+vs = []
+phases = []
+
+for filename in files:
+    piv = PIV(f"../data/zebrafish/unbinned/{filename}", 24, 24, 24, 0, "5pointgaussian", False)
+    piv.add_video(f"../data/zebrafish/unbinned/{filename}")
+    piv.set_coordinate(201, 240)
+    piv.get_correlation_matrices()
+    piv.get_correlation_averaged_velocity_field()
+    vs.append(piv.x_velocity_averaged()[0, 0])
+    phases.append(float(os.path.splitext(filename)[0]))
 plt.figure(figsize = (8, 8))
-for binsize in [10, 15, 20, 30, 40, 50]:
+plt.scatter(phases, vs, s = 1, c = "black")
+
+for binsize in [30]:
     files = os.listdir("../data/zebrafish/unbinned/")
     phases = [float(os.path.splitext(filename)[0]) for filename in files]
     bins = np.linspace(np.min(phases), np.max(phases), binsize)
@@ -31,7 +46,7 @@ for binsize in [10, 15, 20, 30, 40, 50]:
         vs.append(piv.x_velocity_averaged()[0, 0])
         phases.append(b)
 
-    plt.plot(phases, vs, label = f"Bins : {binsize}")
+    plt.plot(phases, vs, label = f"Bins : {binsize}", c = "red")
 plt.xlabel("Phase (Rads)")
 plt.ylabel("Displacement (px)")
 plt.legend()

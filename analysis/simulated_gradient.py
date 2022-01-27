@@ -31,29 +31,29 @@ for filename in os.listdir(f"../data/simulated/gradient/"):
 
     # Get standard error
     vels_temp = []
-    for i in range(5000):
+    for i in range(50):
         piv.resample()
         piv.get_correlation_averaged_velocity_field()
         vels_temp.append(piv.x_velocity_averaged()[0, 0])
         allvels.append(piv.x_velocity_averaged()[0, 0])
         allvels_phase.append(int(os.path.splitext(os.path.basename(filename))[0]) / 31 * np.pi * 2.0)
     stderrs.append(np.std(vels_temp, ddof = 1))
-    plt.hist(vels_temp, bins = 200)
+    """plt.hist(vels_temp, bins = 200)
     plt.axvline(piv.x_velocity_averaged()[0, 0], c = "black")
-    plt.show()
+    plt.show()"""
 
 # Plot it
 xs, ys, err = zip(*sorted(zip(phases, vels, stderrs)))
 plt.figure(figsize = (8, 8))
-plt.plot(xs, ys, c = "black", ls = "--", lw = 0.5)
-#plt.errorbar(xs, ys, yerr = err, capsize = 3, capthick = 1, elinewidth = 1, ls = "None", c = "black")
+#plt.plot(xs, ys, c = "black", ls = "--", lw = 0.5)
+plt.errorbar(xs, ys, yerr = err, capsize = 3, capthick = 1, elinewidth = 1, ls = "None", c = "black")
 print(np.mean(ys))
-plt.scatter(xs, ys, c = "black", s = 6)
+#plt.scatter(xs, ys, c = "black", s = 6)
 plt.xlabel("Phase (rads)")
 plt.ylabel("X displacement (px)")
 #plt.xticks(xs, rotation = 60)
 plt.tight_layout()
 """for x in np.linspace(0, 2 * np.pi, 31, endpoint = False):
     plt.axvline(x - 1/31 * np.pi, lw = 0.2, ls = ":", c = "black")"""
-plt.scatter(allvels_phase, allvels, s = 1)
+#plt.scatter(allvels_phase, allvels, s = 1)
 plt.show()

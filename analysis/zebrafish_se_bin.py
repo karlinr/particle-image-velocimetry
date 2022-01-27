@@ -23,7 +23,12 @@ for s in range(piv.frames // 2 - 2):
         piv.get_correlation_averaged_velocity_field()
         vels.append(piv.x_velocity_averaged()[0])
     xs.append(s + 2)
-    ys.append(np.std(vels))
+    ys.append(np.std(vels, ddof = 1))
+
+plt.scatter(xs, ys)
+plt.xlabel("Number of correlation matrices")
+plt.ylabel("$\sigma$")
+plt.show()
 
 plt.scatter(xs, 1 / np.square(ys))
 plt.xlabel("Number of correlation matrices")

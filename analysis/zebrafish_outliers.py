@@ -50,9 +50,11 @@ for filename in os.listdir(f"../data/zebrafish/processed/"):
         low.append(piv.x_velocity_averaged().flatten()[0] - meanvelocity)
     lowstd.append(np.std(low, ddof = 1))
 
-
+plt.figure(figsize = (16,9))
 #plt.scatter(range(len(means)), means, s = 6, label = "Mean", marker = "_")
 plt.errorbar(range(len(uppers)), uppers, yerr = upstd, ls = "None", label = "Upper")
 plt.errorbar(range(len(lowers)), lowers, yerr = lowstd, ls = "None", label = "Lower")
 plt.legend()
+plt.xlabel("Distance to mean (px)")
+plt.ylabel("Phase (rads)")
 plt.show()
