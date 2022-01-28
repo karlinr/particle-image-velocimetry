@@ -54,18 +54,12 @@ class PIV:
         :return:
         """
         if self.video_raw is None:
-            if type(filename) is list:
-                self.video_raw = tf.imread(filename[0]).astype(np.ushort)
-                for file in filename[1:]:
-                    self.video_raw = np.append(self.video_raw, tf.imread(file).astype(np.ushort), axis = 0)
-            else:
-                self.video_raw = tf.imread(filename).astype(np.ushort)
+            self.video_raw = tf.imread(filename)
+            self.video_raw = np.squeeze(self.video_raw.reshape((-1, self.video_raw.shape[0] * self.video_raw.shape[1], self.video_raw.shape[2], self.video_raw.shape[3])))
         else:
-            if type(filename) is list:
-                for file in filename:
-                    self.video_raw = np.append(self.video_raw, tf.imread(file).astype(np.ushort), axis = 0)
-            else:
-                self.video_raw = np.append(self.video_raw, tf.imread(filename).astype(np.ushort), axis = 0)
+            video_to_add = tf.imread(filename)
+            video_to_add = np.squeeze(video_to_add.reshape((-1, video_to_add.shape[0] * video_to_add.shape[1], video_to_add.shape[2], video_to_add.shape[3])))
+            self.video_raw = np.append(self.video_raw, video_to_add, axis = 0)
 
         self.video = self.video_raw
 

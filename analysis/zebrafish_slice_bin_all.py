@@ -24,7 +24,7 @@ for filename in files:
 plt.figure(figsize = (8, 8))
 plt.scatter(phases, vs, s = 1, c = "black")
 
-for binsize in [30]:
+for binsize in [100]:
     files = os.listdir("../data/zebrafish/unbinned/")
     phases = [float(os.path.splitext(filename)[0]) for filename in files]
     bins = np.linspace(np.min(phases), np.max(phases), binsize)

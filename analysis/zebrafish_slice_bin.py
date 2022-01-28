@@ -9,7 +9,7 @@ plt.rcParams["font.family"] = "serif"
 plt.rcParams["mathtext.fontset"] = "dejavuserif"
 
 plt.figure(figsize = (8, 8))
-for binsize in [10, 15, 20, 30, 40, 50]:
+for binsize in [30]:
     files = os.listdir("../data/zebrafish/unbinned/")
     phases = [float(os.path.splitext(filename)[0]) for filename in files]
     bins = np.linspace(np.min(phases), np.max(phases), binsize)
@@ -17,6 +17,7 @@ for binsize in [10, 15, 20, 30, 40, 50]:
     indices = np.digitize(phases, bins)
 
     vs = []
+    std = []
     phases = []
 
     import time
@@ -30,8 +31,14 @@ for binsize in [10, 15, 20, 30, 40, 50]:
         piv.get_correlation_averaged_velocity_field()
         vs.append(piv.x_velocity_averaged()[0, 0])
         phases.append(b)
+        vs_temp = []
+        for i in range(100):
+            piv.resample()
+            piv.get_correlation_averaged_velocity_field()
+            vs_temp.append(piv.x_velocity_averaged().flatten()[0])
+        std.append(np.std(vs_temp, ddof = 1))
 
-    plt.plot(phases, vs, label = f"Bins : {binsize}")
+    plt.errorbar(phases, vs, std, label = f"Bins : {binsize}")
 plt.xlabel("Phase (Rads)")
 plt.ylabel("Displacement (px)")
 plt.legend()
