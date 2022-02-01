@@ -2,6 +2,8 @@ from classes.piv import PIV
 import numpy as np
 import matplotlib.pyplot as plt
 
+# Find relationship between number of bins and standard error
+
 # MPL
 # plt.style.use('dark_background')
 plt.rcParams["font.family"] = "serif"

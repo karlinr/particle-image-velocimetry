@@ -3,13 +3,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
+# Take percentiles of data and see if correlation averaged result differs from percentile
+# Subtracts from percentile
+# > 0 within percentile
+# < 0 outside percentile
+
 # MPL
 # plt.style.use('dark_background')
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["mathtext.fontset"] = "dejavuserif"
 
 piv = PIV(f"", 24, 27, 24, 0, "5pointgaussian", False)
-piv.add_video(f"../data/zebrafish/processed/22.tif")
+piv.add_video(f"../data/zebrafish/processed/15.tif")
 piv.set_coordinate(201, 240)
 piv.get_correlation_matrices()
 piv.get_correlation_averaged_velocity_field()

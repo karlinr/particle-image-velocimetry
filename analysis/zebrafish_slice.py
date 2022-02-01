@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
+# Plots prebinned data with errors
 
 # MPL
 #plt.style.use('dark_background')

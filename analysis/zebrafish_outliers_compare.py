@@ -3,13 +3,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
+# Take percentiles of data and see if correlation averaged result differs from percentile
+
 # MPL
 # plt.style.use('dark_background')
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["mathtext.fontset"] = "dejavuserif"
 
 piv = PIV(f"", 24, 27, 24, 0, "5pointgaussian", False)
-piv.add_video(f"../data/zebrafish/processed/22.tif")
+piv.add_video(f"../data/zebrafish/processed/15.tif")
 piv.set_coordinate(201, 240)
 piv.get_correlation_matrices()
 piv.get_correlation_averaged_velocity_field()
@@ -25,8 +27,13 @@ std = np.std(v_temp, ddof = 1)
 percs = []
 uppers = []
 uppers_std = []
-for percentage in range(70):
+perc_max = []
+print(sorted(piv.x_velocity().flatten()))
+plt.hist(piv.x_velocity().flatten(), bins = piv.x_velocity().flatten().shape[0])
+plt.show()
+for percentage in range(10, 90):
     arr = np.flatnonzero(piv.x_velocity() >= np.percentile(piv.x_velocity().flatten(), percentage))
+    perc_max.append(np.percentile(piv.x_velocity().flatten(), percentage))
     piv.resample_specific(arr)
     piv.get_correlation_averaged_velocity_field()
     percs.append(percentage)
@@ -36,11 +43,13 @@ for percentage in range(70):
         piv.resample_from_array(arr)
         piv.get_correlation_averaged_velocity_field()
         v_temp.append(piv.x_velocity_averaged().flatten()[0])
-    uppers_std.append(np.std(v_temp, ddof = 1))
+    uppers_std.append(np.std(v_temp))
 lowers = []
 lowers_std = []
-for percentage in range(70):
+percs_min = []
+for percentage in range(10, 90):
     arr = np.flatnonzero(piv.x_velocity() <= np.percentile(piv.x_velocity().flatten(), 100 - percentage))
+    percs_min.append(np.percentile(piv.x_velocity().flatten(), 100 - percentage))
     piv.resample_specific(arr)
     piv.get_correlation_averaged_velocity_field()
     lowers.append(piv.x_velocity_averaged().flatten()[0])
@@ -49,11 +58,11 @@ for percentage in range(70):
         piv.resample_specific(arr[np.random.choice(len(arr), len(arr))])
         piv.get_correlation_averaged_velocity_field()
         v_temp.append(piv.x_velocity_averaged().flatten()[0])
-    lowers_std.append(np.std(v_temp, ddof = 1))
+    lowers_std.append(np.std(v_temp))
 
 mids = []
 mids_std = []
-for percentage in range(70):
+for percentage in range(10, 90):
     arr = np.flatnonzero(np.logical_and(piv.x_velocity().flatten() <= np.percentile(piv.x_velocity().flatten(), 100 - percentage / 2), piv.x_velocity().flatten() >= np.percentile(piv.x_velocity().flatten(), percentage / 2)))
     piv.resample_specific(arr)
     piv.get_correlation_averaged_velocity_field()
@@ -63,9 +72,9 @@ for percentage in range(70):
         piv.resample_specific(arr[np.random.choice(len(arr), len(arr))])
         piv.get_correlation_averaged_velocity_field()
         v_temp.append(piv.x_velocity_averaged().flatten()[0])
-    mids_std.append(np.std(v_temp, ddof = 1))
+    mids_std.append(np.std(v_temp))
 
-piv.resample_reset()
+"""piv.resample_reset()
 piv.get_correlation_averaged_velocity_field()
 plt.axhline(piv.x_velocity_averaged().flatten()[0], c = "black")
 plt.axhline(piv.x_velocity_averaged().flatten()[0] + std, c = "black", ls = ":", lw = 1)
@@ -76,6 +85,23 @@ plt.plot(percs, uppers, c = "blue", label = "Upper")
 plt.fill_between(percs, np.array(uppers) - np.array(uppers_std), np.array(uppers) + np.array(uppers_std), color = "blue", alpha = 0.2)
 plt.plot(percs, lowers, c = "orange", label = "Lower")
 plt.fill_between(percs, np.array(lowers) - np.array(lowers_std), np.array(lowers) + np.array(lowers_std), color = "orange", alpha = 0.2)
+plt.xlabel("Excluded (%)")
+plt.ylabel("X Displacement (px)")
+plt.legend()
+plt.show()
+"""
+plt.plot(percs, uppers, c = "blue", label = "Mean")
+plt.fill_between(percs, np.array(uppers) - np.array(uppers_std), np.array(uppers) + np.array(uppers_std), color = "blue", alpha = 0.2)
+plt.plot(percs, perc_max, c = "black")
+plt.xlabel("Excluded (%)")
+plt.ylabel("X Displacement (px)")
+plt.legend()
+plt.show()
+
+
+plt.plot(percs, lowers, c = "orange", label = "Mean")
+plt.fill_between(percs, np.array(lowers) - np.array(lowers_std), np.array(lowers) + np.array(lowers_std), color = "orange", alpha = 0.2)
+plt.plot(percs, percs_min, c = "black")
 plt.xlabel("Excluded (%)")
 plt.ylabel("X Displacement (px)")
 plt.legend()

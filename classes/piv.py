@@ -55,10 +55,12 @@ class PIV:
         """
         if self.video_raw is None:
             self.video_raw = tf.imread(filename)
-            self.video_raw = np.squeeze(self.video_raw.reshape((-1, self.video_raw.shape[0] * self.video_raw.shape[1], self.video_raw.shape[2], self.video_raw.shape[3])))
+            if self.video_raw.ndim > 3:
+                self.video_raw = np.squeeze(self.video_raw.reshape((-1, self.video_raw.shape[0] * self.video_raw.shape[1], self.video_raw.shape[2], self.video_raw.shape[3])))
         else:
             video_to_add = tf.imread(filename)
-            video_to_add = np.squeeze(video_to_add.reshape((-1, video_to_add.shape[0] * video_to_add.shape[1], video_to_add.shape[2], video_to_add.shape[3])))
+            if video_to_add.ndim > 3:
+                video_to_add = np.squeeze(video_to_add.reshape((-1, video_to_add.shape[0] * video_to_add.shape[1], video_to_add.shape[2], video_to_add.shape[3])))
             self.video_raw = np.append(self.video_raw, video_to_add, axis = 0)
 
         self.video = self.video_raw

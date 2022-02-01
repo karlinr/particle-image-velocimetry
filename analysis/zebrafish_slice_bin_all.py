@@ -3,19 +3,21 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
+# Plots unbinned data + binned data for give binsizes
+
 # MPL
 #plt.style.use('dark_background')
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["mathtext.fontset"] = "dejavuserif"
 
-files = os.listdir("../data/zebrafish/unbinned/")
+files = os.listdir("../data/zebrafish/phase/")
 
 vs = []
 phases = []
 
 for filename in files:
-    piv = PIV(f"../data/zebrafish/unbinned/{filename}", 24, 24, 24, 0, "5pointgaussian", False)
-    piv.add_video(f"../data/zebrafish/unbinned/{filename}")
+    piv = PIV(f"../data/zebrafish/phase/{filename}", 24, 24, 24, 0, "5pointgaussian", False)
+    piv.add_video(f"../data/zebrafish/phase/{filename}")
     piv.set_coordinate(201, 240)
     piv.get_correlation_matrices()
     piv.get_correlation_averaged_velocity_field()
@@ -25,7 +27,7 @@ plt.figure(figsize = (8, 8))
 plt.scatter(phases, vs, s = 1, c = "black")
 
 for binsize in [100]:
-    files = os.listdir("../data/zebrafish/unbinned/")
+    files = os.listdir("../data/zebrafish/phase/")
     phases = [float(os.path.splitext(filename)[0]) for filename in files]
     bins = np.linspace(np.min(phases), np.max(phases), binsize)
     np.set_printoptions(threshold=np.inf)
@@ -39,7 +41,7 @@ for binsize in [100]:
     for i, b in enumerate(bins):
         filestopiv = np.array(files)[indices == i + 1]
         piv = PIV(b, 24, 24, 24, 0.6, "5pointgaussian", False)
-        piv.add_video(["../data/zebrafish/unbinned/" + str(f) for f in filestopiv])
+        piv.add_video(["../data/zebrafish/phase/" + str(f) for f in filestopiv])
         piv.set_coordinate(201, 240)
         piv.get_correlation_matrices()
         piv.get_correlation_averaged_velocity_field()
