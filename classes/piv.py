@@ -108,7 +108,7 @@ class PIV:
 
         :return: None
         """
-        self.intensity_array = np.sum(self.video[::2], axis = 0)
+        self.intensity_array = np.sum(self.video[self.samplearg][::2], axis = 0)
 
     def get_threshold_array(self):
         """
@@ -202,7 +202,7 @@ class PIV:
                 u = -(peak_position[0] + subpixel[0] - (correlation_matrix.shape[0] - 1) / 2)
                 v = -(peak_position[1] + subpixel[1] - (correlation_matrix.shape[1] - 1) / 2)
             else:
-                #print("Falling back to peak fitting method, try increasing window search area")
+                print("Falling back to peak fitting method, try increasing window search area")
                 return self.__get_velocity_vector_from_correlation_matrix(_correlation_matrix, "peak")
         elif pfmethod == "9pointgaussian":
             # https://link.springer.com/content/pdf/10.1007/s00348-005-0942-3.pdf
@@ -279,8 +279,10 @@ class PIV:
             sample_size = self.video.shape[0] // 2
         self.samplearg = np.random.choice(self.video.shape[0] // 2, sample_size)
 
-    def resample_specific(self, args):
+    def resample_specific(self, args, intensity_array = False):
         self.samplearg = args
+        if intensity_array:
+            self.__get_image_intensity_sum()
 
     def resample_from_array(self, arr, sample_size = None):
         if sample_size is None:
@@ -318,7 +320,7 @@ class PIV:
         return self.velocity_field[:, :, :, 2]
 
     def y_velocity(self):
-        return self.velocity_field[:][:, :, 3]
+        return self.velocity_field[:, :, :, 3]
 
     def velocity_magnitude_averaged(self):
         return np.sqrt(self.x_velocity_averaged()[:, :] ** 2 + self.y_velocity_averaged()[:, :] ** 2)
@@ -334,7 +336,7 @@ class PIV:
 
     def plot_flow_field(self, savelocation = None, frame = None):
         #plt.figure()
-        plt.figure(figsize = (12, 7))
+        plt.figure(figsize = (48, 28))
         if frame is None:
             plt.title(f"{self.title}\n Averaged")
             U = self.x_velocity_averaged()[:, :]
@@ -354,4 +356,4 @@ class PIV:
         if savelocation is not None:
             plt.savefig(savelocation)
         plt.show()
-        plt.clf()
+        plt.close()

@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import os
 
 # Plots unbinned data + binned data for give binsizes
+# Uses dot product to find vector similarity
 
 # MPL
 #plt.style.use('dark_background')
@@ -14,8 +15,9 @@ files = os.listdir("../data/zebrafish/phase/")
 
 vs = []
 phases = []
+plt.figure(figsize = (8, 8))
 
-for filename in files:
+"""for filename in files:
     piv = PIV(f"../data/zebrafish/phase/{filename}", 24, 24, 24, 0, "5pointgaussian", False)
     piv.add_video(f"../data/zebrafish/phase/{filename}")
     piv.set_coordinate(201, 240)
@@ -24,9 +26,8 @@ for filename in files:
     vs.append(piv.x_velocity_averaged()[0, 0])
     phases.append(float(os.path.splitext(filename)[0]))
 plt.figure(figsize = (8, 8))
-plt.scatter(phases, vs, s = 1, c = "black")
-
-for binsize in [100]:
+plt.scatter(phases, vs, s = 1, c = "black")"""
+for binsize in [30]:
     files = os.listdir("../data/zebrafish/phase/")
     phases = [float(os.path.splitext(filename)[0]) for filename in files]
     bins = np.linspace(np.min(phases), np.max(phases), binsize)
@@ -34,7 +35,9 @@ for binsize in [100]:
     indices = np.digitize(phases, bins)
 
     vs = []
+    vs_unb = []
     phases = []
+    vs_ub_phases = []
 
     import time
 
@@ -42,13 +45,30 @@ for binsize in [100]:
         filestopiv = np.array(files)[indices == i + 1]
         piv = PIV(b, 24, 24, 24, 0.6, "5pointgaussian", False)
         piv.add_video(["../data/zebrafish/phase/" + str(f) for f in filestopiv])
-        piv.set_coordinate(201, 240)
+        piv.set_coordinate(201, 250)
         piv.get_correlation_matrices()
         piv.get_correlation_averaged_velocity_field()
-        vs.append(piv.x_velocity_averaged()[0, 0])
-        phases.append(b)
+        vs.append(np.sqrt(piv.x_velocity_averaged()[0, 0]**2 + piv.y_velocity_averaged()[0, 0]**2))
+        v = [piv.x_velocity_averaged()[0, 0], piv.y_velocity_averaged()[0, 0]]
+        #piv.plot_flow_field()
+        #print(v)
+        phases.append(b + (np.pi) / binsize)
+        for f in filestopiv:
+            piv = PIV(b, 24, 24, 24, 0.6, "5pointgaussian", False)
+            piv.add_video(f"../data/zebrafish/phase/{f}")
+            piv.set_coordinate(201, 240)
+            piv.get_correlation_matrices()
+            piv.get_correlation_averaged_velocity_field()
+            #print([piv.x_velocity_averaged()[0, 0], piv.y_velocity_averaged()[0, 0]])
+            vs_unb.append(np.dot([piv.x_velocity_averaged()[0, 0], piv.y_velocity_averaged()[0, 0]], v) / vs[-1])
+            if(vs_unb[-1] > 500):
+                print("")
+                print(v)
+                print([piv.x_velocity_averaged()[0, 0], piv.y_velocity_averaged()[0, 0]])
+            vs_ub_phases.append(float(os.path.splitext(f)[0]))
 
-    plt.plot(phases, vs, label = f"Bins : {binsize}", c = "red")
+    plt.scatter(vs_ub_phases, vs_unb, s = 1, c = "black")
+    plt.scatter(phases, vs, label = f"Bins : {binsize}", c = "red")
 plt.xlabel("Phase (Rads)")
 plt.ylabel("Displacement (px)")
 plt.legend()

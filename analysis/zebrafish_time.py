@@ -27,7 +27,7 @@ for i, filename in enumerate(os.listdir("../data/zebrafish/time/")):
         vs.append(piv.x_velocity_averaged().flatten()[0])
         if piv.x_velocity_averaged().flatten()[0] < -10:
             print(filename)
-            plt.imshow(piv.correlation_averaged[0][0,0,:,:])
+            plt.imshow(piv.correlation_averaged[0][0, 0, :, :])
             plt.show()
         ts.append(float(os.path.splitext(os.path.basename(filename))[0]))
 
