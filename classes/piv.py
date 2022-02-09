@@ -79,7 +79,7 @@ class PIV:
         self.height = int(((self.video.shape[2] + self.inc) - (2 * self.sa + self.iw)) // self.inc)
 
         self.resample_reset()
-        self.__get_image_intensity_sum()
+        self.get_image_intensity_sum()
         return 0
 
     def get_spaced_coordinates(self):
@@ -103,7 +103,7 @@ class PIV:
         self.threshold_array[0, 0] = 1
         self.coordinates[0, 0, :] = [x - self.sa - 0.5 * self.iw, y - self.sa - 0.5 * self.iw]
 
-    def __get_image_intensity_sum(self):
+    def get_image_intensity_sum(self):
         """
 
         :return: None
@@ -123,6 +123,7 @@ class PIV:
         intensity_array = intensity_array - np.min(intensity_array)
         # TODO: fix : normalisation constant is a minimum of 1 when float values could be possible
         self.threshold_array = np.array([intensity_array / np.max([np.max(intensity_array), 1]) >= self.threshold]).reshape((self.width, self.height))
+        return self.threshold_array
 
     def get_correlation_matrices(self):
         """
@@ -282,7 +283,8 @@ class PIV:
     def resample_specific(self, args, intensity_array = False):
         self.samplearg = args
         if intensity_array:
-            self.__get_image_intensity_sum()
+            self.get_image_intensity_sum()
+            self.get_threshold_array()
 
     def resample_from_array(self, arr, sample_size = None):
         if sample_size is None:
@@ -335,10 +337,11 @@ class PIV:
         return self.coordinates[:, :, 1] + self.sa + 0.5 * self.iw + self.yoffset
 
     def plot_flow_field(self, savelocation = None, frame = None):
-        #plt.figure()
-        plt.figure(figsize = (48, 28))
+        plt.figure(figsize = (12, 7))
         if frame is None:
             plt.title(f"{self.title}\n Averaged")
+            # U = self.x_velocity_averaged()[:, :]
+            # V = self.y_velocity_averaged()[:, :]
             U = self.x_velocity_averaged()[:, :]
             V = self.y_velocity_averaged()[:, :]
         else:
@@ -355,5 +358,5 @@ class PIV:
         plt.gca().invert_yaxis()
         if savelocation is not None:
             plt.savefig(savelocation)
-        plt.show()
+        #plt.show()
         plt.close()
