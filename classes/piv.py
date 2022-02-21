@@ -9,14 +9,14 @@ import matplotlib.pyplot as plt
 class PIV:
     def __init__(self, _title, _iw, _sa, _inc, _threshold, _pfmethod, _pad = False):
         """
-        Creates a particle image velocimetry object.
-        :param _filename: A tif video
-        :param _iw: Inner interrogation window
-        :param _sa: Search area for larger interrogation window
-        :param _inc: Increment for velocity field
-        :param _threshold: Minimum particle threshold
-        :param _pfmethod: peak-finding method: "peak", "5pointgaussian", "9pointgaussian", "sinc", "gaussian"
-        :param _pad: Whether to pad the input tif video
+
+        :param _title:
+        :param _iw:
+        :param _sa:
+        :param _inc:
+        :param _threshold:
+        :param _pfmethod:
+        :param _pad:
         """
         # Get config variables
         self.title = _title
@@ -47,18 +47,28 @@ class PIV:
         self.height = None
         self.intensity_array_for_display = None
 
-    def add_video(self, filename):
+    def add_video(self, file):
         """
         Takes a list of video files and appends them
-        :param filename:
+        :param file:
         :return:
         """
         if self.video_raw is None:
-            self.video_raw = tf.imread(filename)
+            if isinstance(file, str):
+                self.video_raw = tf.imread(file)
+            elif isinstance(file, np.ndarray):
+                self.video_raw = file
+            else:
+                self.video_raw = None
             if self.video_raw.ndim > 3:
                 self.video_raw = np.squeeze(self.video_raw.reshape((-1, self.video_raw.shape[0] * self.video_raw.shape[1], self.video_raw.shape[2], self.video_raw.shape[3])))
         else:
-            video_to_add = tf.imread(filename)
+            if isinstance(file, str):
+                video_to_add = tf.imread(file)
+            elif isinstance(file, np.ndarray):
+                video_to_add = file
+            else:
+                video_to_add = None
             if video_to_add.ndim > 3:
                 video_to_add = np.squeeze(video_to_add.reshape((-1, video_to_add.shape[0] * video_to_add.shape[1], video_to_add.shape[2], video_to_add.shape[3])))
             self.video_raw = np.append(self.video_raw, video_to_add, axis = 0)
@@ -115,14 +125,13 @@ class PIV:
 
         :return: None
         """
-        intensity_array = np.array(
+        """intensity_array = np.array(
             [np.sum(self.intensity_array[j * self.inc + self.xoffset: (j * self.inc) + (2 * self.sa + self.iw) + self.xoffset,
                     k * self.inc + self.yoffset: (k * self.inc) + (2 * self.sa + self.iw) + self.yoffset]) for j
              in range(0, self.width) for k
-             in range(0, self.height)])
-        intensity_array = intensity_array - np.min(intensity_array)
-        # TODO: fix : normalisation constant is a minimum of 1 when float values could be possible
-        self.threshold_array = np.array([intensity_array / np.max([np.max(intensity_array), 1]) >= self.threshold]).reshape((self.width, self.height))
+             in range(0, self.height)])"""
+        intensity_array = np.array([np.sum(self.intensity_array[j * self.inc + self.xoffset + self.sa: (j * self.inc) + (self.sa + self.iw) + self.xoffset, k * self.inc + self.yoffset + self.sa: (k * self.inc) + (self.sa + self.iw) + self.yoffset]) for j in range(0, self.width) for k in range(0, self.height)])
+        self.threshold_array = np.array([(intensity_array - np.min(intensity_array)) / (np.max(intensity_array) - np.min(intensity_array)) >= self.threshold]).reshape((self.width, self.height))
         return self.threshold_array
 
     def get_correlation_matrices(self):
@@ -337,7 +346,7 @@ class PIV:
         return self.coordinates[:, :, 1] + self.sa + 0.5 * self.iw + self.yoffset
 
     def plot_flow_field(self, savelocation = None, frame = None):
-        plt.figure(figsize = (12, 7))
+        #plt.figure(figsize = (12, 7))
         if frame is None:
             plt.title(f"{self.title}\n Averaged")
             # U = self.x_velocity_averaged()[:, :]
@@ -346,11 +355,11 @@ class PIV:
             V = self.y_velocity_averaged()[:, :]
         else:
             plt.title(f"{self.title}\n Frame : {frame}")
-            U = self.x_velocity(frame)[:, :]
-            V = self.y_velocity(frame)[:, :]
+            U = self.x_velocity()[frame, :, :]
+            V = self.y_velocity()[frame, :, :]
         mag = np.sqrt(U ** 2 + V ** 2)
         plt.imshow(np.flip(np.flip(np.rot90(self.intensity_array_for_display), axis = 1)), cmap = "gray", aspect = "auto")
-        plt.quiver(self.xcoords(), self.ycoords(), U / mag, V / mag, mag, angles = "xy")
+        plt.quiver(self.xcoords(), self.ycoords(), U, V, mag, angles = "xy", scale_units="xy", scale = 1)
         plt.clim(0, 24)
         plt.colorbar()
         plt.xlim(0, self.intensity_array.shape[0])
@@ -358,5 +367,5 @@ class PIV:
         plt.gca().invert_yaxis()
         if savelocation is not None:
             plt.savefig(savelocation)
-        #plt.show()
+        plt.show()
         plt.close()

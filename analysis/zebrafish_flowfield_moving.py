@@ -24,9 +24,10 @@ for i1, binoffset in enumerate(np.linspace(0, 2 * np.pi / number_of_bins, total_
     for i2, b in enumerate(bins):
         filestopiv = np.array(files)[indices == i2 + 1]
         if filestopiv.shape[0] > 0:
-            piv = PIV(np.mod(b - binoffset, 2 * np.pi), 24, 24, 16, 0.55, "5pointgaussian", True)
+            piv = PIV(np.mod(b - binoffset, 2 * np.pi), 24, 24, 12, 0.5, "9pointgaussian", True)
             piv.add_video(["../data/zebrafish/phase/" + str(f) for f in filestopiv])
             piv.get_spaced_coordinates()
             piv.get_correlation_matrices()
             piv.get_correlation_averaged_velocity_field()
             piv.plot_flow_field(f"../analysis/visualisations/09022022/zebrafish_flowfield_moving_bin/{int((np.mod(b - binoffset, 2 * np.pi)) * 1e17)}.png")
+            print("Done")
