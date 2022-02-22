@@ -4,6 +4,8 @@ import tifffile as tf
 import msl_sad_correlation as msc
 import math
 import matplotlib.pyplot as plt
+from PIL import Image
+import PIL.ImageTransform
 
 
 class PIV:
@@ -46,6 +48,11 @@ class PIV:
         self.width = None
         self.height = None
         self.intensity_array_for_display = None
+
+    def set(self, _iw, _sa, _inc):
+        self.iw = _iw
+        self.sa = _sa
+        self.inc = _inc
 
     def add_video(self, file):
         """
@@ -94,6 +101,8 @@ class PIV:
 
     def get_spaced_coordinates(self):
         # Get offset to centre vector locations
+        self.width = int(((self.video.shape[1] + self.inc) - (2 * self.sa + self.iw)) // self.inc)
+        self.height = int(((self.video.shape[2] + self.inc) - (2 * self.sa + self.iw)) // self.inc)
         self.xoffset = int((self.video.shape[1] - ((self.width - 1) * self.inc + 2 * self.sa + self.iw)) // 2)
         self.yoffset = int((self.video.shape[2] - ((self.height - 1) * self.inc + 2 * self.sa + self.iw)) // 2)
         self.get_threshold_array()
@@ -318,6 +327,30 @@ class PIV:
         self.correlation_averaged = np.empty((1, *self.correlation_matrices[self.samplearg].shape[1:5]), dtype = np.float64)
         self.correlation_averaged[0] = np.mean(self.correlation_matrices[self.samplearg], axis = 0)
         self.correlation_averaged_velocity_field = self.__get_velocity_field_from_correlation_matrices(self.correlation_averaged)
+
+    def window_deform(self):
+        """
+        Applies a window deformation to odd frames based upon current measured flow field.
+        :return: None
+        """
+        xcoords = self.xcoords().astype(int)
+        ycoords = self.ycoords().astype(int)
+        flow_x = -self.x_velocity_averaged()
+        flow_y = -self.y_velocity_averaged()
+        mesh = []
+        for j in range(xcoords.shape[0] - 1):
+            for k in range(ycoords.shape[1] - 1):
+                mesh.append([(ycoords[j, k], xcoords[j, k], ycoords[j + 1, k + 1], xcoords[j + 1, k + 1]),
+                             [ycoords[j, k] + flow_y[j, k], xcoords[j, k] + flow_x[j, k],
+                              ycoords[j + 1, k] + flow_y[j + 1, k], xcoords[j + 1, k] + flow_x[j + 1, k],
+                              ycoords[j + 1, k + 1] + flow_y[j + 1, k + 1], xcoords[j + 1, k + 1] + flow_x[j + 1, k + 1],
+                              ycoords[j, k + 1] + flow_y[j, k + 1], xcoords[j, k + 1] + flow_x[j, k + 1]]])
+
+        for i in range(self.video.shape[0] // 2):
+            image_deformed = Image.fromarray(self.video[i * 2, :, :], mode = "I;16")
+            image_deformed = np.array(image_deformed.transform(image_deformed.size, PIL.Image.MESH, mesh))
+            self.video[i * 2, :, :] = image_deformed
+
 
     # Todo : Add error checking
     # Return methods
