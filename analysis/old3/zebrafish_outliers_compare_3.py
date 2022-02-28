@@ -9,9 +9,9 @@ import os
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["mathtext.fontset"] = "dejavuserif"
 
-for filename in os.listdir("../data/zebrafish/processed/"):
+for filename in os.listdir("../../data/zebrafish/processed/"):
     piv = PIV(f"", 24, 27, 24, 0, "5pointgaussian", False)
-    piv.add_video(f"../data/zebrafish/processed/{filename}")
+    piv.add_video(f"../../data/zebrafish/processed/{filename}")
     piv.set_coordinate(201, 240)
     piv.get_correlation_matrices()
     piv.get_correlation_averaged_velocity_field()
@@ -55,5 +55,5 @@ for filename in os.listdir("../data/zebrafish/processed/"):
     plt.plot(range(len(vdots)), sorted(vdots, reverse = True), c = "orange")
     plt.xlabel("Number Excluded")
     plt.ylabel("Displacement in direction of mean vector (px)")
-    plt.savefig(f"../analysis/visualisations/02022022/outliers_compare_dot/{filename}")
+    #plt.savefig(f"../analysis/visualisations/02022022/outliers_compare_dot/{filename}")
     plt.show()

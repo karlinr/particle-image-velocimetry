@@ -10,7 +10,7 @@ import os
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["mathtext.fontset"] = "dejavuserif"
 
-files = os.listdir("../data/zebrafish/phase/")
+files = os.listdir("../../data/zebrafish/phase/")
 piv = PIV("Full", 24, 24, 24, 0, "5pointgaussian", False)
 piv.add_video([f"../data/zebrafish/phase/" + str(f) for f in files])
 piv.set_coordinate(201, 240)
@@ -24,7 +24,7 @@ for i in range(500):
     v_temp.append(piv.x_velocity_averaged().flatten()[0])
 v_mean_std = np.std(v_temp)
 
-folders = os.listdir("../data/zebrafish/phasetime/")
+folders = os.listdir("../../data/zebrafish/phasetime/")
 
 vs = []
 vs_std = []

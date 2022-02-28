@@ -4,6 +4,7 @@ import time
 import field_functions
 import random
 import os
+import matplotlib.pyplot as plt
 
 
 # Returns a gaussian
@@ -17,10 +18,10 @@ def circular_gaussian(_x, _y, _mean_x, _mean_y, _sdx, _sdy, _theta):
 
 
 class Particle:
-    def __init__(self, _xvel, _yvel, _xsd, _ysd, _function, _brightness, _theta):
+    def __init__(self, _xvel, _yvel, _xsd, _ysd, _function, _theta):
         # Assign particle variables
         self.function = _function
-        self.brightness = _brightness
+        self.brightness = (0.005 + 0.0005 * random.uniform(0, 1)) / 100
         self.x = 0
         self.y = 0
         self.xvel = _xvel
@@ -34,14 +35,15 @@ class Particle:
 
     def step(self):
         # Advance a frame
+        self.brightness = (0.005 + 0.0005 * random.uniform(0, 1)) / 100
         self.velocity_x, self.velocity_y = self.function(self.x, self.y, self.xvel, self.yvel, self.xsd, self.ysd)
         self.x += self.velocity_x
         self.y += self.velocity_y
-        self.theta += random.gauss(np.pi / 90, np.pi / 360)
+        self.theta += random.gauss(0, np.pi / 20)
 
     def randomise_position(self):
-        self.x = random.uniform(-particle_size, animation_width + particle_size)
-        self.y = random.uniform(-particle_size, animation_width + particle_size)
+        self.x = random.uniform(-particle_size - (simulation_width - animation_width), simulation_width + particle_size)
+        self.y = random.uniform(-particle_size - (simulation_height - animation_height), simulation_height + particle_size)
 
 
 def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd, num):
@@ -54,27 +56,29 @@ def make_animation(_function, _name, _xvel, _yvel, _xsd, _ysd, num):
         # Setup particles
         a = np.empty(particles + 1, dtype=object)
         for i in range(particles):
-            _x = random.uniform(-particle_size, animation_width + particle_size)
-            _y = random.uniform(-particle_size, animation_height + particle_size)
+            _x = random.uniform(-particle_size - (simulation_width - animation_width), simulation_width + particle_size)
+            _y = random.uniform(-particle_size - (simulation_height - animation_height), simulation_height + particle_size)
 
-            a[i] = Particle(_xvel, _yvel, _xsd, _ysd, _function, 0.025 + 0.025 * random.uniform(0, 1), random.uniform(0, 2 * np.pi))
+            a[i] = Particle(_xvel, _yvel, _xsd, _ysd, _function, random.uniform(0, 2 * np.pi))
 
         # Set up video array
-        video_array = np.zeros((animation_frames, animation_width, animation_height), dtype=np.int_)
+        video_array = np.zeros((animation_frames, animation_width, animation_height), dtype = np.ushort)
         xx, yy = np.meshgrid(range(animation_width), range(animation_height))
 
         # Simulate particles
         for t in range(animation_frames):
-            image_array = np.zeros((animation_width, animation_height), dtype=np.int_)
+            image_array = np.full((animation_width, animation_height), 8, dtype = np.ushort)
             for i in range(particles):
                 if t % 2 == 0:
                     a[i].randomise_position()
                 a[i].step()
-                image_array = np.add(image_array, a[i].brightness * circular_gaussian(xx, yy, a[i].x, a[i].y, particle_size + random.gauss(0.5, 0.2), 1.2 * particle_size + random.gauss(0.5, 0.2), a[i].theta))
-            image_array = np.add(image_array, np.random.normal(450, 100, image_array.shape))
+                image_array = np.add(image_array, a[i].brightness * circular_gaussian(xx, yy, a[i].x, a[i].y, particle_size + random.gauss(0.5, 0.2), 2 * particle_size + random.gauss(1, 1), a[i].theta))
+            image_array = np.add(image_array, np.random.normal(0, 0.3, image_array.shape))
             image_array = np.maximum(np.minimum(image_array, np.full(image_array.shape, 2**16 - 1)), np.full(image_array.shape, 0))
             # Save current frame to video
-            video_array[t] = image_array
+            video_array[t] = image_array.astype(np.ushort)
+            #plt.imshow(video_array[t], origin = "lower")
+            #plt.show()
 
         # Save to disk
         tf.imwrite(f"simulated/{_name}/{v}.tif", video_array.astype(np.ushort), compression = "zlib")
@@ -89,13 +93,13 @@ random.seed()
 # Note : 76 is lowest frame count for zebrafish, 194 is max
 
 # Make videos
-simulation_width = 90
-simulation_height = 90
-animation_width = 74
-animation_height = 74
-animation_frames = 76
-particles = 3
+simulation_width = 96
+simulation_height = 96
+animation_width = 72
+animation_height = 72
+animation_frames = 64
+particles = 5
 particle_size = 9
 #make_animation(field_functions.constant, "constant3.5", 0, 3.5, 0, 0, 500)
 #make_animation(field_functions.constant, "constant3.25", 0, 3.25, 0, 0, 500)
-make_animation(field_functions.gradient, "gradient", 0, 3.25, 0, 0, 500)
+make_animation(field_functions.constant, "constant_for_presentation", 5.5, 5.5, 0, 0, 1)

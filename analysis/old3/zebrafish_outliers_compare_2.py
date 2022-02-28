@@ -13,7 +13,7 @@ import os
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["mathtext.fontset"] = "dejavuserif"
 
-for filename in os.listdir("../data/zebrafish/processed/"):
+for filename in os.listdir("../../data/zebrafish/processed/"):
     piv = PIV(f"", 24, 27, 24, 0, "5pointgaussian", False)
     piv.add_video(f"../data/zebrafish/processed/{filename}")
     piv.set_coordinate(201, 240)

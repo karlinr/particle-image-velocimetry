@@ -23,7 +23,7 @@ plt.hist(vs, bins = 100)
 plt.show()
 
 vs = []
-for filename in os.listdir("../data/simulated/constant3.5/"):
+for filename in os.listdir("../../data/simulated/constant3.5/"):
     piv = PIV(f"../data/simulated/constant3.5/{filename}", 24, 24, 24, 0, "5pointgaussian", False)
     piv.add_video(f"../data/simulated/constant3.5/{filename}")
     piv.set_coordinate(36, 36)

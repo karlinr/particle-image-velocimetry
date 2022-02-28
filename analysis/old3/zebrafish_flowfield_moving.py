@@ -17,7 +17,7 @@ number_of_bins = 25
 total_points = 200
 bins = np.linspace(0, 2 * np.pi, number_of_bins)
 
-files = os.listdir("../data/zebrafish/phase/")
+files = os.listdir("../../data/zebrafish/phase/")
 for i1, binoffset in enumerate(np.linspace(0, 2 * np.pi / number_of_bins, total_points // number_of_bins)):
     phases = np.mod([float(os.path.splitext(filename)[0]) + binoffset for filename in files], 2 * np.pi)
     indices = np.digitize(phases, bins)

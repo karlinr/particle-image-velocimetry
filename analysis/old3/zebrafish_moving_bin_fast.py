@@ -16,7 +16,7 @@ plt.rcParams["mathtext.fontset"] = "dejavuserif"
 number_of_bins = range(10, 50)
 total_points = 200
 
-files = os.listdir("../data/zebrafish/phase/")
+files = os.listdir("../../data/zebrafish/phase/")
 
 piv = PIV("", 24, 24, 24, 0.6, "5pointgaussian", False)
 piv.add_video(["../data/zebrafish/phase/" + str(f) for f in files])

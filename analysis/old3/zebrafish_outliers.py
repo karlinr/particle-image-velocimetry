@@ -15,7 +15,7 @@ lowstd = []
 uppers = []
 upstd = []
 
-for filename in os.listdir(f"../data/zebrafish/processed/"):
+for filename in os.listdir(f"../../data/zebrafish/processed/"):
     piv = PIV(f"../data/zebrafish/processed/{filename}", 24, 27, 24, 0, "5pointgaussian", False)
     piv.add_video(f"../data/zebrafish/processed/{filename}")
     piv.set_coordinate(201, 240)

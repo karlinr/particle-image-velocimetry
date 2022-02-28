@@ -12,7 +12,7 @@ plt.rcParams["mathtext.fontset"] = "dejavuserif"
 
 plt.figure(figsize = (8, 8))
 for binsize in [30]:
-    files = os.listdir("../data/zebrafish/phase/")
+    files = os.listdir("../../data/zebrafish/phase/")
     phases = [float(os.path.splitext(filename)[0]) for filename in files]
     bins = np.linspace(np.min(phases), np.max(phases), binsize)
     np.set_printoptions(threshold=np.inf)

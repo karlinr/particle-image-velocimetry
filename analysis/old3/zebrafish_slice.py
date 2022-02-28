@@ -20,7 +20,7 @@ allvels_phase = []
 allvelsbs_phase = []
 
 
-for filename in os.listdir(f"../data/zebrafish/processed/"):
+for filename in os.listdir(f"../../data/zebrafish/processed/"):
     # Setup PIV
     piv = PIV(f"../data/zebrafish/processed/{filename}", 24, 24, 24, 0, "5pointgaussian", False)
     piv.add_video(f"../data/zebrafish/processed/{filename}")

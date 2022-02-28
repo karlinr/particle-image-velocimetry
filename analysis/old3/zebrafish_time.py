@@ -11,10 +11,10 @@ plt.rcParams["mathtext.fontset"] = "dejavuserif"
 vs = []
 ts = []
 
-files = os.listdir("../data/zebrafish/time/")
+files = os.listdir("../../data/zebrafish/time/")
 print(files)
 
-for i, filename in enumerate(os.listdir("../data/zebrafish/time/")):
+for i, filename in enumerate(os.listdir("../../data/zebrafish/time/")):
     if i % 32 == 0:
         piv = PIV(f"../data/zebrafish/time/{filename}", 24, 24, 24, 0, "5pointgaussian", False)
         piv.add_video(f"../data/zebrafish/time/{filename}")

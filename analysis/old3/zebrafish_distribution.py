@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
-for filename in os.listdir(f"../data/zebrafish/processed/"):
+for filename in os.listdir(f"../../data/zebrafish/processed/"):
     if filename == "5.tif":
         piv = PIV(f"", 24, 24, 24, 0, "9pointgaussian", False)
         piv.add_video(f"../data/zebrafish/processed/{filename}")

@@ -29,6 +29,8 @@ print(bins)
 indices = np.digitize(piv.x_velocity().flatten(), bins)
 for i, b in enumerate(bins):
     bnum.append(i)
+    if b == 1:
+        print(indices)
     if(np.any(indices == 1)):
         piv.resample_specific(indices == i + 1)
         piv.get_correlation_averaged_velocity_field()

@@ -9,9 +9,9 @@ import os
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["mathtext.fontset"] = "dejavuserif"
 
-for filename in os.listdir("../data/zebrafish/processed/"):
+for filename in os.listdir("../../data/zebrafish/processed/"):
     piv = PIV(f"", 24, 27, 24, 0, "5pointgaussian", False)
-    piv.add_video(f"../data/zebrafish/processed/{filename}")
+    piv.add_video(f"../../data/zebrafish/processed/{filename}")
     piv.set_coordinate(201, 240)
     piv.get_correlation_matrices()
     piv.get_correlation_averaged_velocity_field()
@@ -68,7 +68,7 @@ for filename in os.listdir("../data/zebrafish/processed/"):
     plt.axhline(mean_vx, c = "black")
     plt.axhline(mean_vx + mean_vx_std, ls = ":", c = "black")
     plt.axhline(mean_vx - mean_vx_std, ls = ":", c = "black")
-    plt.savefig(f"../analysis/visualisations/02022022/outliers_compare/x/left/{filename}")
+    #plt.savefig(f"../analysis/visualisations/02022022/outliers_compare/x/left/{filename}")
     plt.xlabel("Number Excluded")
     plt.ylabel("y displacement (px)")
     plt.show()
@@ -79,7 +79,7 @@ for filename in os.listdir("../data/zebrafish/processed/"):
     plt.axhline(mean_vy, c = "black")
     plt.axhline(mean_vy + mean_vy_std, ls = ":", c = "black")
     plt.axhline(mean_vy - mean_vy_std, ls = ":", c = "black")
-    plt.savefig(f"../analysis/visualisations/02022022/outliers_compare/y/left/{filename}")
+    #plt.savefig(f"../analysis/visualisations/02022022/outliers_compare/y/left/{filename}")
     plt.xlabel("Number Excluded")
     plt.ylabel("y displacement (px)")
     plt.show()
