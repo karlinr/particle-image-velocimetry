@@ -32,20 +32,33 @@ bins = np.linspace(0, 2 * np.pi, numberofbins)
 indices = np.digitize(phases, bins)
 vs = []
 for i, b in enumerate(bins):
-    if 1 == 1:
+    if i == 23:
         filestopiv = np.array(files)[indices == i + 1]
         """print(f"Bin: {bins[23]}-{bins[24]}")
         print(f"minmax: {np.min(np.array(phases)[indices == i + 1])}-{np.max(np.array(phases)[indices == i + 1])}")"""
         if len(filestopiv) > 0:
-            piv = PIV("", 24, 24, 16, 0.4, "5pointgaussian", False)
+            piv = PIV("", 40, 24, 16, 0.4, "5pointgaussian", False)
             piv.add_video(["../data/zebrafish/phase/" + str(f) for f in filestopiv])
-            piv.set_coordinate(198, 234)
+            piv.set_coordinate(198, 235)
+            #piv.set_coordinate(100, 150)
             #piv.get_spaced_coordinates()
             piv.get_correlation_matrices()
             piv.get_correlation_averaged_velocity_field()
-            piv.get_velocity_field()
-            plt.scatter(np.mean(np.array(phases)[indices == i + 1]), piv.x_velocity_averaged().flatten())
-            plt.scatter(np.array(phases)[indices == i + 1], piv.x_velocity().flatten())
+            piv.plot_flow_field()
+            dist = []
+            """for _ in range(2):
+                piv.resample()
+                piv.get_correlation_averaged_velocity_field()
+                dist.append(piv.x_velocity_averaged().flatten()[0])
+            plt.hist(dist, bins = 500)
+            piv.resample_reset()
+            piv.get_correlation_averaged_velocity_field()
+            plt.axvline(piv.x_velocity_averaged().flatten()[0], c = "red")
+            plt.show()
+            piv.get_correlation_averaged_velocity_field()
+            piv.get_velocity_field()"""
+            #plt.scatter(np.mean(np.array(phases)[indices == i + 1]), piv.x_velocity_averaged().flatten())
+            #plt.scatter(np.array(phases)[indices == i + 1], piv.x_velocity().flatten())
             #piv.plot_flow_field()
             """plt.hist(piv.x_velocity().flatten(), bins = len(filestopiv))
             plt.show()"""
@@ -74,7 +87,7 @@ for i, b in enumerate(bins):
             print(mean_uncs[peak])
             print(std_uncs[peak] / np.sqrt(10))"""
 
-plt.show()
+#plt.show()
 
 """
 piv = PIV(f"", 24, 24, 16, 0.5, "5pointgaussian", False)

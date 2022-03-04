@@ -97,9 +97,9 @@ simulation_width = 96
 simulation_height = 96
 animation_width = 72
 animation_height = 72
-animation_frames = 64
+animation_frames = 128
 particles = 5
 particle_size = 9
 #make_animation(field_functions.constant, "constant3.5", 0, 3.5, 0, 0, 500)
 #make_animation(field_functions.constant, "constant3.25", 0, 3.25, 0, 0, 500)
-make_animation(field_functions.constant, "constant_for_presentation", 5.5, 5.5, 0, 0, 1)
+make_animation(field_functions.constant, "constant_for_presentation", 5.5, 5.5, 0, 0, 500)
