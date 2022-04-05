@@ -78,7 +78,7 @@ plt.figure(figsize = (8, 8))
 binsize = 31
 files = os.listdir("../data/zebrafish/phase/")
 phases = [float(os.path.splitext(filename)[0]) for filename in files]
-bins = np.linspace(np.min(phases), np.max(phases), binsize)
+bins = np.linspace(0, 2*np.pi, binsize)
 indices = np.digitize(phases, bins)
 
 vs = []
@@ -125,5 +125,5 @@ plt.scatter(phases, vs, c = "red", s = 2)
 plt.xlabel("Phase (Rads)")
 plt.ylabel("Displacement (px)")
 plt.tight_layout()
-plt.savefig('../analysis/presentation/analysis_distribution.pgf', transparent = True)
+#plt.savefig('../analysis/presentation/analysis_distribution.pgf', transparent = True)
 plt.show()

@@ -14,7 +14,7 @@ files = os.listdir("../data/zebrafish/phase/")
 phases = [float(os.path.splitext(filename)[0]) for filename in files]
 bins = np.linspace(np.min(phases), np.max(phases), binsize)
 indices = np.digitize(phases, bins)
-filestopiv = np.array(files)[indices == 23 + 1]
+filestopiv = np.array(files)[indices == 14 + 1]
 phasestopiv = [float(os.path.splitext(filename)[0]) for filename in filestopiv]
 
 piv = PIV(f"", 24, 24, 8, 0.4, "5pointgaussian", False)

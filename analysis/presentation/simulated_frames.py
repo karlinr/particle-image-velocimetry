@@ -20,6 +20,32 @@ piv.get_velocity_field()
 piv.get_correlation_averaged_velocity_field()
 print(piv.x_velocity_averaged())
 
+fig, axs = plt.subplots(8, 8, figsize = (2.2, 2.2))
+for i, cormat in enumerate(piv.correlation_matrices):
+    axs[np.unravel_index(i, (8, 8))].imshow(cormat[0, 0], interpolation = "none")
+    axs[np.unravel_index(i, (8, 8))].axis('off')
+#plt.tight_layout()
+plt.axis('off')
+plt.savefig('piv_correlation_all.pgf', bbox_inches='tight', pad_inches = 0, transparent = True)
+plt.show()
+
+resample = np.random.choice(piv.video.shape[0] // 2, piv.video.shape[0] // 2)
+fig, axs = plt.subplots(8,8, figsize = (2.2, 2.2))
+for i, cormat in enumerate(piv.correlation_matrices[resample]):
+    axs[np.unravel_index(i, (8, 8))].imshow(cormat[0, 0], interpolation = "none")
+    axs[np.unravel_index(i, (8, 8))].axis('off')
+#plt.tight_layout()
+plt.axis('off')
+plt.savefig('piv_correlation_all_resampled.pgf', bbox_inches='tight', pad_inches = 0, transparent = True)
+plt.show()
+
+plt.figure(figsize = (2.2, 2.2))
+x = np.flip(np.mean(piv.correlation_matrices[resample], axis = 0)[0, 0], axis = 1)
+plt.imshow(x, origin = "lower", extent=[-x.shape[1]/2., x.shape[1]/2., -x.shape[0]/2., x.shape[0]/2], interpolation = "none")
+plt.axis('off')
+plt.savefig('piv_correlation_averaged_resampled.pgf', bbox_inches='tight', pad_inches = 0, transparent = True)
+plt.show()
+
 # Masking method: https://stackoverflow.com/questions/31877353/overlay-an-image-segmentation-with-numpy-and-matplotlib
 mask = np.zeros(piv.video[0].shape)
 mask[24:48, 24:48] = 1
@@ -71,21 +97,15 @@ plt.show()
 plt.figure(figsize = (2, 2.3))
 x = np.flip(piv.correlation_matrices[0, 0, 0], axis = 1)
 plt.imshow(x, origin = "lower", extent=[-x.shape[1]/2., x.shape[1]/2., -x.shape[0]/2., x.shape[0]/2], interpolation = "none")
+plt.axis('off')
 plt.savefig('piv_correlation.pgf', bbox_inches='tight', pad_inches = 0, transparent = True)
 plt.show()
 
-plt.figure(figsize = (2, 2.3))
+plt.figure(figsize = (2.2, 2.2))
 x = np.flip(np.mean(piv.correlation_matrices, axis = 0)[0, 0], axis = 1)
 plt.imshow(x, origin = "lower", extent=[-x.shape[1]/2., x.shape[1]/2., -x.shape[0]/2., x.shape[0]/2], interpolation = "none")
+plt.axis('off')
 plt.savefig('piv_correlation_averaged.pgf', bbox_inches='tight', pad_inches = 0, transparent = True)
-plt.show()
-
-plt.figure(figsize = (3.2, 2.6))
-plt.hist(dist, bins = 100)
-plt.ylabel("Frequency of Occurence")
-plt.xlabel("X Displacement (px)")
-plt.tight_layout()
-plt.savefig('piv_correlation_distribution.pgf', bbox_inches='tight', pad_inches = 0, transparent = True)
 plt.show()
 
 print(piv.x_velocity()[0])

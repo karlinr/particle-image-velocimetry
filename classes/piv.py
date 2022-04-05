@@ -8,13 +8,13 @@ from PIL import Image
 import PIL.ImageTransform
 from scipy import ndimage
 
-gaussiankernel = np.array([[1, 2, 1],
-                           [2, 4, 2],
-                           [1, 2, 1]])
+gaussiankernel = (1 / 16) * np.array([[1, 2, 1],
+                                      [2, 4, 2],
+                                      [1, 2, 1]])
 
 
 class PIV:
-    def __init__(self, _title, _iw, _sa, _inc, _threshold, _pfmethod, _pad = False):
+    def __init__(self, _title, _iw, _sa, _inc, _threshold, _pfmethod, _pad = False, _smooth = True):
         """
         NAME
             PIV: Particle image velocimetry class
@@ -46,6 +46,7 @@ class PIV:
         self.threshold = _threshold
         self.pfmethod = _pfmethod
         self.pad = _pad
+        self.smooth = _smooth
 
         # Set init variables
         self.intensity_array = None
@@ -233,9 +234,8 @@ class PIV:
                         template = a[tl_iw1_x:br_iw1_x, tl_iw1_y:br_iw1_y]
 
                         # Calculate the absolute differences for the interrogation window
-                        self.correlation_matrices[f // 2, j, k, :, :] = ndimage.convolve(
-                            msc.sad_correlation(template.astype(np.ushort), template_to_match.astype(np.ushort)), gaussiankernel)
-                        # self.correlation_matrices[f // 2, j, k, :, :] = msc.sad_correlation(template.astype(np.ushort), template_to_match.astype(np.ushort))
+                        # self.correlation_matrices[f // 2, j, k, :, :] = ndimage.gaussian_filter(msc.sad_correlation(template.astype(np.ushort), template_to_match.astype(np.ushort)), 8)
+                        self.correlation_matrices[f // 2, j, k, :, :] = msc.sad_correlation(template.astype(np.ushort), template_to_match.astype(np.ushort))
 
     def __get_velocity_vector_from_correlation_matrix(self, _correlation_matrix, _pfmethod = None):
         """
@@ -244,7 +244,13 @@ class PIV:
         :param _pfmethod: peak-finding method: "peak", "5pointgaussian", "9pointgaussian", "sinc", "gaussian"
         :return:
         """
-        correlation_matrix = -_correlation_matrix + np.max(_correlation_matrix)
+        if self.smooth:
+            #correlation_matrix = ndimage.convolve(-_correlation_matrix + np.max(_correlation_matrix), gaussiankernel)
+            correlation_matrix = ndimage.gaussian_filter(-_correlation_matrix + np.max(_correlation_matrix), 3, mode = "wrap")
+            """plt.imshow(correlation_matrix)
+            plt.show()"""
+        else:
+            correlation_matrix = -_correlation_matrix + np.max(_correlation_matrix)
         peak_position = np.unravel_index(correlation_matrix.argmax(), correlation_matrix.shape, order = "C")
 
         # methods from : https://www.aa.washington.edu/sites/aa/files/faculty/dabiri/pubs/piV.Review.Paper.final.pdf
@@ -342,6 +348,39 @@ class PIV:
             raise ValueError("Invalid peak fitting method.")
         return v, u
 
+    def get_averaged_peak_correlation_amplitude(self):
+        return np.max(-self.correlation_averaged + np.max(self.correlation_averaged))
+
+    def get_peak_correlation_amplitude(self):
+        correlation_matrices = self.correlation_matrices[self.samplearg, 0, 0, :, :]
+        peaks = []
+        for f in range(0, correlation_matrices.shape[0]):
+            correlation_matrix = -correlation_matrices[f] + np.max(correlation_matrices[f])
+            peak = np.max(correlation_matrix)
+            peaks.append(peak)
+        return peaks
+
+    # SNR Metrics
+    # Only work with single coordinate
+    # https://arxiv.org/ftp/arxiv/papers/1405/1405.3023.pdf
+    def get_averaged_peak_to_root_mean_square_ratio(self):
+        correlation_matrix = -self.correlation_averaged[0, 0, 0, :, :] + np.max(self.correlation_averaged[0, 0, 0, :, :])
+        peak = np.max(correlation_matrix)
+        halfpoints = np.where(correlation_matrix <= peak / 2)
+        peak_rms = np.sqrt((1 / np.count_nonzero(halfpoints)) * np.sum(correlation_matrix[halfpoints] ** 2))
+        return peak ** 2 / peak_rms ** 2
+
+    def get_peak_to_root_mean_square_ratio(self):
+        prmsr = []
+        correlation_matrices = self.correlation_matrices[self.samplearg, 0, 0, :, :]
+        for f in range(0, correlation_matrices.shape[0]):
+            correlation_matrix = -correlation_matrices[f] + np.max(correlation_matrices[f])
+            peak = np.max(correlation_matrix)
+            halfpoints = np.where(correlation_matrix <= peak / 2)
+            peak_rms = ((1 / np.count_nonzero(halfpoints)) * np.sum(correlation_matrix[halfpoints] ** 2)) ** 0.5
+            prmsr.append(peak ** 2 / peak_rms ** 2)
+        return prmsr
+
     def __get_velocity_field_from_correlation_matrices(self, correlation_matrix):
         """
 
@@ -358,7 +397,7 @@ class PIV:
         return velocity_field + self.passoffset
 
     def do_pass(self):
-        self.passoffset = self.correlation_averaged_velocity_field.astype(int)
+        self.passoffset = np.round(self.correlation_averaged_velocity_field)
 
     def resample(self, sample_size = None):
         if sample_size is None:
@@ -489,7 +528,8 @@ class PIV:
         plt.close()
 
     def begin_draw(self):
-        plt.figure(figsize = (16, 9))
+        plt.figure(figsize = (3, 3))
+        #plt.figure(figsize = (6.2, 3.4))
 
     def draw_iw(self):
         for j in range(0, self.coordinates.shape[0]):
@@ -508,11 +548,11 @@ class PIV:
                     tl_iw2_x = int(self.coordinates[j, k, 0] + self.xoffset + self.passoffset[0][j, k, 0])
                     tl_iw2_y = int(self.coordinates[j, k, 1] + self.yoffset + self.passoffset[0][j, k, 1])
 
-                    rectangle = plt.Rectangle((tl_iw2_y, tl_iw2_x), self.iw + 2 * self.sa, self.iw + 2 * self.sa, fc = 'none', ec = "blue", ls = ":")
+                    rectangle = plt.Rectangle((tl_iw2_y, tl_iw2_x), self.iw + 2 * self.sa, self.iw + 2 * self.sa, fc = 'none', ec = "green")
                     plt.gca().add_patch(rectangle)
 
     def draw_intensity(self):
-        plt.imshow(self.intensity_array_for_display, cmap = "gray", aspect = "auto")
+        plt.imshow(self.intensity_array_for_display, cmap = "gray", aspect = "equal", interpolation = "None")
 
     def draw_flow_field(self, frame = None):
         if frame is None:
@@ -525,9 +565,14 @@ class PIV:
             plt.title(f"{self.title}\n Frame : {frame}")
             U = self.x_velocity()[frame, :, :]
             V = self.y_velocity()[frame, :, :]
-        mag = np.sqrt(U ** 2 + V ** 2)
+        mag = np.sqrt(U ** 2 + V ** 2)**0.5
         plt.quiver(self.xcoords(), self.ycoords(), U / mag, V / mag, mag, angles = "xy")
         plt.colorbar()
+        plt.xlim(self.sa + self.iw, self.intensity_array_for_display.shape[1] - self.sa - self.iw)
+        plt.ylim(self.sa + self.iw, self.intensity_array_for_display.shape[0] - self.sa - self.iw)
+        ax = plt.gca()
+        ax.axes.xaxis.set_ticks([])
+        ax.axes.yaxis.set_ticks([])
 
     def draw_averaged_correlation_matrix(self):
         plt.imshow(self.correlation_averaged[0, 0, 0])
