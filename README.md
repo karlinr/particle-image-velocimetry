@@ -1,6 +1,6 @@
 # Particle Image Velocimetry
 
-A Python implementation of particle image velocimetry (PIV) developed as part of my master's project. My work was on quantifying zebrafish blood flow velocity and quantifying the uncertainty on those measurements.
+A Python implementation of particle image velocimetry (PIV) developed as part of my master's project. My work was on quantifying zebrafish blood flow velocity and quantifying the uncertainty on those measurements. Full details at [https://github.com/karlinr/particle-image-velocimetry/blob/75ed359d2e0533602451887c8543f1f8d1c84639/](https://github.com/karlinr/particle-image-velocimetry/blob/75ed359d2e0533602451887c8543f1f8d1c84639/)
 
 ## Usage
 
